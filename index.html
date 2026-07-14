@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission CGL — Prep Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="shell">
+  <div id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CGL</div>
+      <div class="brand-text"><div class="t1">Mission CGL</div><div class="t2">Prep Command Center</div></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="sidefoot">
+      <div class="streakpill">🔥 <span id="sideStreak">0 day streak</span></div>
+      <button class="darkbtn" data-action="toggleDark">🌓 Toggle theme</button>
+    </div>
+  </div>
+  <div id="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="searchwrap">
+        <span class="sic">🔍</span>
+        <input id="searchInput" type="text" placeholder="Search topics, notes, formulas, vocab...">
+        <div id="searchResults"></div>
+      </div>
+    </div>
+    <div id="view"></div>
+  </div>
+</div>
+<div id="modalRoot"></div>
+<script src="js/app.js"></script>
+</body>
+</html>
