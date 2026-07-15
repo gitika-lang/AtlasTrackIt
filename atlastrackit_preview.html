@@ -294,7 +294,7 @@ function defaultState(){
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[]
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
   };
 }
 let DB=defaultState();
@@ -312,6 +312,7 @@ async function loadDB(){
       DB.tasks=parsed.tasks||{};
       DB.dailyTargets=parsed.dailyTargets||{};
       DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
+      DB.history=Array.isArray(parsed.history)?parsed.history:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
@@ -336,12 +337,17 @@ async function loadDB(){
   pomo.mode='Work';
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
+  sessionDate=pomoSavedDate||todayStr();
+  checkDayRollover();
   render();
   if(pomo.running){
     studyTimer.running=(pomo.mode==='Work');
     pomo.interval=setInterval(pomoTick,1000);
   }
+  clearInterval(dayRollcheckInterval);
+  dayRollcheckInterval=setInterval(checkDayRollover,30000);
 }
+let dayRollcheckInterval=null;
 
 function importDataFromFile(input){
   const file=input.files&&input.files[0];
@@ -357,6 +363,7 @@ function importDataFromFile(input){
     DB.tasks=parsed.tasks||{};
     DB.dailyTargets=parsed.dailyTargets||{};
     DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
+    DB.history=Array.isArray(parsed.history)?parsed.history:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
@@ -519,7 +526,7 @@ function dailyRecommendations(){
   return out;
 }
 /* ---- live study time (logged + running Pomodoro session timer) ---- */
-function todayStudyTime(){return hoursOn(todayStr())+(studyTimer.running?studyTimer.seconds/3600:0);}
+function todayStudyTime(){return hoursOn(todayStr())+(studyTimer.seconds/3600);}
 
 /* ================= RENDER SHELL ================= */
 const TABS=[
@@ -707,8 +714,31 @@ function renderDashboard(){
     </div>
   </div>
 
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    ${renderStudyHistoryCard()}
+  </div>
+
   <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
   `;
+}
+function renderStudyHistoryCard(){
+  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})[0];
+  const yEntry=(DB.history||[]).find(h=>h.date===y);
+  return `
+    <div class="card">
+      <div class="flexbetween" style="margin-bottom:8px;">
+        <div class="label">📅 Study History</div>
+        <button class="btn ghost sm" data-action="openHistory">View History</button>
+      </div>
+      ${yEntry?`
+      <div class="sub" style="margin-bottom:4px;">Yesterday</div>
+      <div style="font-size:13px;line-height:1.9;">
+        <div>• Goal Completion: <b>${yEntry.goalPct}%</b></div>
+        <div>• Study Time: <b>${fmtHrsMin(yEntry.studyHours)}</b></div>
+        <div>• Questions Solved: <b>${yEntry.questionsSolved}</b></div>
+        <div>• Revisions Completed: <b>${yEntry.revisionsCompleted}</b></div>
+      </div>`:`<div class="emptystate">No data recorded for yesterday yet.</div>`}
+    </div>`;
 }
 function ringSVG(pct){
   const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
@@ -827,9 +857,10 @@ function renderSubjectDetail(k){
     <td><input type="number" step="0.5" min="0" value="${t.timeSpent}" data-field="timeSpent" data-topic="${t.id}" data-key="${k}" style="width:60px;"></td>
     <td><select data-field="confidence" data-topic="${t.id}" data-key="${k}">${[1,2,3,4,5].map(n=>`<option ${t.confidence==n?'selected':''}>${n}</option>`).join('')}</select></td>
     <td><select data-field="difficulty" data-topic="${t.id}" data-key="${k}">${['Easy','Medium','Hard'].map(o=>`<option ${t.difficulty===o?'selected':''}>${o}</option>`).join('')}</select></td>
-    <td>
+    <td style="white-space:nowrap;">
       <span class="mono">${t.revisions}</span>
       <button class="icon-only" data-action="addRevision" data-topic="${t.id}" data-key="${k}" title="Log a revision">＋</button>
+      <button class="icon-only" data-action="openEditRevisions" data-topic="${t.id}" data-key="${k}" title="Set or edit revision count">✏</button>
     </td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="notes" title="Edit notes">📝${t.notes?'<span class=\"notes-preview\">'+esc(t.notes.slice(0,14))+'</span>':''}</button></td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="mistakes" title="Edit mistakes">⚠${t.mistakes?'<span class=\"notes-preview\">'+esc(t.mistakes.slice(0,14))+'</span>':''}</button></td>
@@ -1350,6 +1381,7 @@ function savePomoState(){
     }));
   }catch(e){/* localStorage unavailable */}
 }
+let pomoSavedDate=null; // date the restored studyTimer.seconds belongs to (may be a previous day)
 function loadPomoState(){
   try{
     const raw=localStorage.getItem(POMO_LS_KEY);
@@ -1358,7 +1390,8 @@ function loadPomoState(){
     pomo.mode=s.mode==='Break'?'Break':'Work';
     pomo.seconds=typeof s.seconds==='number'?s.seconds:pomoDurationSeconds(pomo.mode);
     pomo.running=!!s.running;
-    if(s.studyDate===todayStr())studyTimer.seconds=Number(s.studySeconds)||0;
+    studyTimer.seconds=Number(s.studySeconds)||0;
+    pomoSavedDate=s.studyDate||todayStr();
     if(pomo.running&&s.ts){
       // catch up for time elapsed while the page was closed/refreshed
       const elapsed=Math.max(0,Math.floor((Date.now()-s.ts)/1000));
@@ -1373,6 +1406,40 @@ function loadPomoState(){
       }
     }
   }catch(e){/* ignore malformed state */}
+}
+let sessionDate=null; // tracks the "current" date for an open session, used to detect midnight rollover while the app stays open
+function finalizeDay(oldDate){
+  if(!oldDate||oldDate===todayStr())return;
+  if((DB.history||[]).some(h=>h.date===oldDate))return; // already finalized this date, avoid double-counting
+  // flush any live, not-yet-logged Pomodoro time for the old day into a real session
+  // so it counts toward Total Study Hours / Streak / History, then clear the live counter
+  if(studyTimer.seconds>0){
+    DB.sessions.push({id:uid(),date:oldDate,start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
+      subject:subjectKeys()[0]||'',topic:'Pomodoro Session',subtopic:'',qSolved:0,qCorrect:0,qWrong:0,
+      source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
+      revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
+  }
+  const studyHours=hoursOn(oldDate);
+  const target=effectiveTargetFor(oldDate);
+  const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
+  const questionsSolved=questionsOn(oldDate);
+  const revisionsCompleted=allTopics().filter(t=>t.lastRevisionDate===oldDate).length;
+  DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
+  DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
+  DB.history.sort((a,b)=>b.date.localeCompare(a.date));
+  if(DB.history.length>120)DB.history=DB.history.slice(0,120);
+  // reset only today's live counters — subjects, topics, streak, goals, mocks, totals are untouched
+  studyTimer.seconds=0; studyTimer.running=false;
+  clearInterval(pomo.interval); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
+  savePomoState(); scheduleSave();
+}
+function checkDayRollover(){
+  const today=todayStr();
+  if(sessionDate&&sessionDate!==today){
+    finalizeDay(sessionDate);
+    sessionDate=today;
+    render();
+  }
 }
 function playBeep(){
   if(!DB.meta.pomoSound)return;
@@ -1397,6 +1464,7 @@ function notifySessionEnd(nextMode){
 }
 function pomoDurationSeconds(mode){return (mode==='Work'?(DB.meta.pomoWork||25):(DB.meta.pomoBreak||5))*60;}
 function pomoTick(){
+  checkDayRollover();
   pomo.seconds--;
   if(pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds++;
   if(pomo.seconds<=0){
@@ -1532,6 +1600,30 @@ function handleAction(action,btn){
     savePomoState(); scheduleSave(); render(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
+  if(action==='openHistory'){
+    const rows=(DB.history||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+    openModal(`<h3>📅 Study History</h3>
+    <p class="sub" style="margin:0 0 10px;">A saved summary of every completed day.</p>
+    ${rows.length===0?'<div class="emptystate">No completed days recorded yet. Check back after your first full day.</div>':`
+    <div style="max-height:60vh;overflow:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border);">
+        <th style="padding:6px 4px;">Date</th><th style="padding:6px 4px;">Goal</th><th style="padding:6px 4px;">Study Time</th><th style="padding:6px 4px;">Questions</th><th style="padding:6px 4px;">Revisions</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 4px;">${esc(r.date)}</td>
+          <td style="padding:6px 4px;">${r.goalPct}%</td>
+          <td style="padding:6px 4px;">${fmtHrsMin(r.studyHours)}</td>
+          <td style="padding:6px 4px;">${r.questionsSolved}</td>
+          <td style="padding:6px 4px;">${r.revisionsCompleted}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`}
+    <div class="row" style="margin-top:12px;"><button class="btn ghost" data-action="closeModal">Close</button></div>`);
+    return;
+  }
   if(action==='goSubjects'){currentTab='study'; currentSubtab.study='subjects'; openSubject=null; render(); return;}
   if(action==='openSubject'){openSubject=d.key; render(); return;}
   if(action==='closeSubject'){openSubject=null; render(); return;}
@@ -1539,6 +1631,25 @@ function handleAction(action,btn){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
     if(topic.revisions<5){topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; scheduleSave(); render();}
     return;
+  }
+  if(action==='openEditRevisions'){
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    openModal(`<h3>Revisions — ${esc(topic.name)}</h3>
+    <p class="sub" style="margin:0 0 10px;">Set exactly how many times you've revised this topic (0–5).</p>
+    <input type="number" min="0" max="5" id="revCountInput" value="${topic.revisions}" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveEditRevisions" data-key="${d.key}" data-topic="${d.topic}">Save</button></div>`);
+    return;
+  }
+  if(action==='saveEditRevisions'){
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    let val=Number(document.getElementById('revCountInput').value);
+    if(isNaN(val))val=0;
+    val=Math.max(0,Math.min(5,Math.round(val)));
+    const increased=val>topic.revisions;
+    topic.revisions=val;
+    if(val===0){ topic.lastRevisionDate=''; if(topic.status==='Revised')topic.status='Completed'; }
+    else{ if(increased)topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; }
+    scheduleSave(); closeModal(); render(); return;
   }
   /* ---- Custom (freeform) revision reminders ---- */
   if(action==='openAddCustomRevision'){
