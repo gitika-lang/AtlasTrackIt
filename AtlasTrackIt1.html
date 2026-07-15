@@ -1,3 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AtlasTrackIt — Prep Command Center</title>
+<meta name="description" content="AtlasTrackIt — a single dashboard to track study progress, goals, habits and mock tests for any exam, certification or learning journey.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf6f8; --bg-soft:#f6eef2; --card:#ffffff; --border:#ecdfe6;
+  --text:#251320; --text-muted:#7c6570; --text-faint:#a6919c;
+  --accent-900:#5c0e33; --accent-700:#9c1049; --accent-600:#b3164f; --accent-500:#d13a6d;
+  --accent-100:#f6d9e4; --accent-50:#fbeef3;
+  --green:#0f9d68; --green-bg:#e6f7ef; --amber:#c67c00; --amber-bg:#fdf1dc;
+  --red:#dc2626; --red-bg:#fdecec; --purple:#7c3aed;
+  --radius:14px; --shadow:0 1px 2px rgba(37,19,32,.04),0 6px 20px -8px rgba(37,19,32,.10);
+  --font-display:'Space Grotesk',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+}
+html.dark{
+  --bg:#170a10; --bg-soft:#1e0e16; --card:#241119; --border:#3a1c29;
+  --text:#f5e9ee; --text-muted:#b592a1; --text-faint:#7a5867;
+  --accent-100:#3e1226; --accent-50:#2b0e1c;
+  --green-bg:#0d2a20; --amber-bg:#2c2107; --red-bg:#2c1414;
+}
+/* Accent presets — set via html[data-accent] from Settings, default is Maroon */
+html[data-accent="rose"]{ --accent-900:#7a1440; --accent-700:#c2185b; --accent-600:#e91e63; --accent-500:#f06292; --accent-100:#fbd9e6; --accent-50:#fef3f7; }
+html[data-accent="berry"]{ --accent-900:#3f0d2e; --accent-700:#701a49; --accent-600:#9c2861; --accent-500:#c14b81; --accent-100:#f1dbe7; --accent-50:#f8eef3; }
+html[data-accent="crimson"]{ --accent-900:#4a0d14; --accent-700:#8c1c26; --accent-600:#b3212d; --accent-500:#d84a54; --accent-100:#f6dcdd; --accent-50:#fbeeee; }
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);transition:background .2s,color .2s;}
+h1,h2,h3,.disp{font-family:var(--font-display);letter-spacing:-.01em;}
+.mono{font-family:var(--font-mono);}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+a{color:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+
+#shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh;}
+#sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:18px;}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;}
+.brand-mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(150deg,var(--accent-500),var(--accent-900));display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 4px 14px -4px var(--accent-700);}
+.brand-mark svg{width:20px;height:20px;}
+.brand-text .t1{font-size:14.5px;font-weight:700;line-height:1.1;font-family:var(--font-display);letter-spacing:-.01em;}
+.brand-text .t2{font-size:10px;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
+nav{display:flex;flex-direction:column;gap:3px;}
+.navbtn{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:9px;border:none;background:transparent;color:var(--text-muted);font-size:13.5px;font-weight:600;text-align:left;width:100%;transition:background .15s,color .15s,transform .1s;}
+.navbtn:hover{background:var(--bg-soft);color:var(--text);}
+.navbtn:active{transform:scale(.98);}
+.navbtn.active{background:var(--accent-600);color:#fff;box-shadow:0 3px 10px -3px var(--accent-700);}
+.navbtn .ic{width:18px;text-align:center;font-size:14px;}
+.sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:8px;}
+.streakpill{display:flex;align-items:center;gap:8px;background:var(--accent-50);border:1px solid var(--accent-100);border-radius:10px;padding:9px 10px;font-size:12px;font-weight:600;color:var(--accent-700);}
+.darkbtn{border:1px solid var(--border);background:var(--card);border-radius:9px;padding:8px;font-size:12px;font-weight:600;color:var(--text-muted);display:flex;gap:6px;align-items:center;justify-content:center;transition:border-color .15s,color .15s;}
+.darkbtn:hover{border-color:var(--accent-500);color:var(--accent-600);}
+
+#main{padding:22px 28px 60px;max-width:1320px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.topbar h1{font-size:21px;margin:0;}
+.searchwrap{position:relative;flex:1;max-width:340px;min-width:180px;}
+.searchwrap input{width:100%;padding:9px 12px 9px 32px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;}
+.searchwrap .sic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-faint);font-size:13px;}
+#searchResults{position:absolute;top:110%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);z-index:40;max-height:280px;overflow-y:auto;display:none;}
+#searchResults .sres{padding:8px 12px;font-size:12.5px;border-bottom:1px solid var(--border);}
+#searchResults .sres b{color:var(--accent-700);}
+
+.grid{display:grid;gap:14px;}
+.g4{grid-template-columns:repeat(4,1fr);} .g3{grid-template-columns:repeat(3,1fr);} .g2{grid-template-columns:repeat(2,1fr);}
+@media(max-width:1100px){.g4{grid-template-columns:repeat(2,1fr);} .g3{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.g4,.g3,.g2{grid-template-columns:1fr;} #shell{grid-template-columns:1fr;} #sidebar{position:relative;height:auto;flex-direction:row;overflow-x:auto;align-items:center;} nav{flex-direction:row;} .sidefoot{display:none;}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);transition:box-shadow .18s,border-color .18s;}
+.stat{display:flex;flex-direction:column;gap:4px;}
+.stat .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .value{font-size:24px;font-weight:700;font-family:var(--font-display);}
+.stat .sub{font-size:11px;color:var(--text-faint);}
+.bar{height:7px;border-radius:5px;background:var(--bg-soft);overflow:hidden;margin-top:6px;}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent-500),var(--accent-700));border-radius:5px;}
+
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 0 10px;}
+.section-title h2{font-size:15.5px;margin:0;}
+.section-title .hint{font-size:11.5px;color:var(--text-faint);}
+
+.btn{border:none;border-radius:9px;padding:8px 14px;font-size:12.5px;font-weight:600;background:var(--accent-600);color:#fff;transition:background .15s,transform .1s;}
+.btn:hover{background:var(--accent-700);}
+.btn:active{transform:scale(.97);}
+.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text-muted);}
+.btn.ghost:hover{border-color:var(--accent-500);color:var(--accent-600);background:var(--accent-50);}
+.btn.danger{background:var(--red-bg);color:var(--red);}
+.btn.danger:hover{background:var(--red);color:#fff;}
+.btn.sm{padding:5px 10px;font-size:11.5px;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;color:var(--text-muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+select,input[type=text],input[type=number],input[type=date],input[type=time],textarea{background:var(--bg-soft);border:1px solid var(--border);border-radius:7px;padding:6px 8px;font-size:12.5px;color:var(--text);}
+.pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10.5px;font-weight:700;}
+.pill.notstarted{background:var(--bg-soft);color:var(--text-muted);}
+.pill.inprogress{background:var(--amber-bg);color:var(--amber);}
+.pill.completed{background:var(--green-bg);color:var(--green);}
+.pill.revised{background:var(--accent-100);color:var(--accent-700);}
+.subjectcard{cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s;}
+.subjectcard:hover{border-color:var(--accent-500);transform:translateY(-2px);box-shadow:0 10px 24px -12px rgba(37,19,32,.18);}
+.tabsrow{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.tabsrow button{border:1px solid var(--border);background:var(--card);color:var(--text-muted);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:600;transition:.15s;}
+.tabsrow button:hover{border-color:var(--accent-500);color:var(--accent-600);}
+.tabsrow button.active{background:var(--accent-600);color:#fff;border-color:var(--accent-600);}
+.subnav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:14px;}
+.subnav button{border:1px solid var(--border);background:var(--card);color:var(--text-muted);border-radius:99px;padding:7px 14px;font-size:12.5px;font-weight:600;transition:.15s;display:flex;align-items:center;gap:6px;}
+.subnav button:hover{border-color:var(--accent-500);color:var(--accent-600);}
+.subnav button.active{background:var(--accent-600);color:#fff;border-color:var(--accent-600);box-shadow:0 3px 10px -3px var(--accent-700);}
+
+.formgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
+.formgrid label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-muted);font-weight:600;}
+.formgrid label textarea{min-height:44px;resize:vertical;}
+.emptystate{padding:26px;text-align:center;color:var(--text-faint);font-size:12.5px;border:1px dashed var(--border);border-radius:12px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(10,18,32,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal{background:var(--card);border-radius:14px;padding:20px;max-width:460px;width:100%;box-shadow:var(--shadow);}
+.modal h3{margin:0 0 10px;font-size:15px;}
+.modal textarea{width:100%;min-height:110px;resize:vertical;}
+.modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+.badge{border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--text-faint);background:var(--bg-soft);}
+.badge.unlocked{background:linear-gradient(160deg,var(--accent-50),var(--accent-100));color:var(--accent-700);border-color:var(--accent-100);}
+.badge .bic{font-size:22px;display:block;margin-bottom:4px;}
+
+.heatmap{display:grid;grid-template-columns:repeat(26,1fr);gap:3px;}
+.heatcell{aspect-ratio:1;border-radius:3px;background:var(--bg-soft);}
+.ring-wrap{position:relative;width:120px;height:120px;margin:0 auto;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.ring-label b{font-size:20px;font-family:var(--font-display);}
+.ring-label span{font-size:10px;color:var(--text-muted);}
+
+.quote-box{background:linear-gradient(135deg,var(--accent-900),var(--accent-700));color:#fff;border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;}
+.quote-box:before{content:'"';position:absolute;right:12px;top:-24px;font-size:120px;font-family:var(--font-display);opacity:.12;}
+.quote-box p{font-size:15px;font-weight:600;margin:0 0 6px;font-family:var(--font-display);}
+.quote-box span{font-size:11px;opacity:.75;}
+
+.pomo-display{font-family:var(--font-mono);font-size:44px;font-weight:700;text-align:center;letter-spacing:.02em;}
+.pomo-controls{display:flex;gap:8px;justify-content:center;margin-top:10px;}
+.checkbox-row{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;}
+.checkbox-row input{width:16px;height:16px;}
+.icon-only{background:transparent;border:none;color:var(--text-faint);font-size:13px;padding:3px;}
+.icon-only:hover{color:var(--accent-600);}
+.notes-preview{font-size:11px;color:var(--text-faint);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;}
+.flexbetween{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--bg-soft);color:var(--text-muted);}
+.tag.high{background:var(--red-bg);color:var(--red);}
+.tag.med{background:var(--amber-bg);color:var(--amber);}
+.tag.low{background:var(--green-bg);color:var(--green);}
+.review-block{white-space:pre-line;font-size:13px;line-height:1.7;}
+
+.swatch-row{display:flex;gap:10px;flex-wrap:wrap;}
+.swatch{width:36px;height:36px;border-radius:50%;border:2px solid transparent;cursor:pointer;position:relative;transition:transform .15s,border-color .15s;}
+.swatch:hover{transform:scale(1.08);}
+.swatch.active{border-color:var(--text);}
+.swatch.active:after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.35);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row .srlabel{font-size:13px;font-weight:600;}
+.settings-row .srhint{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+.danger-zone{border:1px solid var(--red-bg);background:var(--red-bg);border-radius:var(--radius);padding:16px;}
+.danger-zone .label{color:var(--red);}
+.version-tag{font-size:11px;color:var(--text-faint);text-align:center;padding:10px 0 0;}
+
+/* ================= FLOATING POMODORO WIDGET ================= */
+#floatingTimer{position:fixed;right:18px;bottom:18px;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);z-index:80;width:190px;font-family:var(--font-body);overflow:hidden;user-select:none;}
+#floatingTimer.minimized{width:auto;}
+.float-drag-handle{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--accent-50);border-bottom:1px solid var(--border);cursor:grab;touch-action:none;}
+#floatingTimer.minimized .float-drag-handle{border-bottom:none;}
+.float-drag-handle:active{cursor:grabbing;}
+.float-mode-tag{font-size:11px;font-weight:700;color:var(--accent-700);white-space:nowrap;}
+.float-win-btns{display:flex;gap:2px;}
+.float-win-btns .icon-only{font-size:12px;padding:2px 4px;}
+.float-body{padding:8px 12px 12px;}
+
+/* ================= MOBILE SIDEBAR ================= */
+#hamburgerBtn{display:none;}
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(10,18,32,.4);z-index:65;}
+#sidebarOverlay.show{display:block;}
+#sidebarCloseBtn{display:none;}
+@media(max-width:700px){
+  #hamburgerBtn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:16px;flex-shrink:0;}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;height:100vh;z-index:70;transform:translateX(-100%);transition:transform .25s ease;flex-direction:column;overflow-x:hidden;align-items:stretch;}
+  #sidebar.open{transform:translateX(0);}
+  #sidebar nav{flex-direction:column;}
+  #sidebar .sidefoot{display:flex;}
+  #sidebarCloseBtn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);margin-left:auto;}
+  .topbar{gap:10px;}
+}
+
+/* ================= SUBJECT DRAG CUES ================= */
+[data-subj-drag]{transition:opacity .15s,transform .15s;}
+[data-subj-drag][draggable="true"]:active{opacity:.7;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="shell">
+  <div id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
+          <path d="M12 4.5 15 12l-3 7.5L9 12z" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.4" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="brand-text"><div class="t1">AtlasTrackIt</div><div class="t2">Prep Command Center</div></div>
+      <button id="sidebarCloseBtn" data-action="closeMobileSidebar" title="Close menu">✕</button>
+    </div>
+    <nav id="nav"></nav>
+    <div class="sidefoot">
+      <div class="streakpill">🔥 <span id="sideStreak">0 day streak</span></div>
+      <button class="darkbtn" data-action="toggleDark">🌓 Toggle theme</button>
+    </div>
+  </div>
+  <div id="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="hamburgerBtn" data-action="openMobileSidebar" title="Open menu">☰</button>
+        <h1 id="pageTitle">Dashboard</h1>
+      </div>
+      <div class="searchwrap">
+        <span class="sic">🔍</span>
+        <input id="searchInput" type="text" placeholder="Search topics, notes, formulas, vocab...">
+        <div id="searchResults"></div>
+      </div>
+    </div>
+    <div id="view"></div>
+  </div>
+</div>
+<div id="sidebarOverlay"></div>
+<div id="modalRoot"></div>
+<script>
 /* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
@@ -46,15 +287,19 @@ const QUOTES=[
 "The streak isn't the goal. It's proof the goal is being worked on.",
 "Every question you get wrong today is one you won't miss in the exam hall."
 ];
+const DEFAULT_SUBJECT_COLORS=['#b3164f','#9c2861','#c2185b','#0f9d68','#c67c00','#7c3aed','#2563eb','#dc2626','#0891b2','#65a30d'];
+const DEFAULT_TOPIC_ICON='📘';
 
 function freshTopic(name){return {id:uid(),name,status:'Not Started',targetDate:'',completionDate:'',timeSpent:0,confidence:3,difficulty:'Medium',revisions:0,lastRevisionDate:'',notes:'',mistakes:''};}
 function defaultState(){
   const subjects={};
-  Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic)};});
+  Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
-    meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',pomoWork:25,pomoBreak:5},
-    sessions:[], subjects, goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}
+    meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
+      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,
+      showFloatingTimer:true,floatingPos:null,floatingMinimized:false},
+    sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}
   };
 }
 let DB=defaultState();
@@ -70,15 +315,29 @@ async function loadDB(){
       // deep-merge meta so newly added fields get defaults on old saved data
       DB.meta=Object.assign(defaultState().meta,parsed.meta||{});
       DB.tasks=parsed.tasks||{};
+      DB.dailyTargets=parsed.dailyTargets||{};
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
-        if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic)};
+        if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};
       });
+      // backfill name/icon/color/builtin fields on subjects saved by older versions
+      Object.keys(DB.subjects).forEach(k=>{
+        const s=DB.subjects[k];
+        if(!s.name)s.name=SYLLABUS[k]?SYLLABUS[k].label:k;
+        if(!s.icon)s.icon=SYLLABUS[k]?SYLLABUS[k].icon:DEFAULT_TOPIC_ICON;
+        if(s.color===undefined)s.color='';
+        if(s.builtin===undefined)s.builtin=!!SYLLABUS[k];
+      });
+      // backfill subject order, keep any saved order but append missing keys
+      const savedOrder=Array.isArray(parsed.subjectOrder)?parsed.subjectOrder.filter(k=>DB.subjects[k]):[];
+      const missing=Object.keys(DB.subjects).filter(k=>!savedOrder.includes(k));
+      DB.subjectOrder=[...savedOrder,...missing];
     }
   }catch(e){ /* no existing key yet */ }
   if(DB.meta.dark)document.documentElement.classList.add('dark');
   document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
+  pomo.mode='Work';
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   render();
   renderFloatingTimer();
@@ -97,19 +356,36 @@ function importDataFromFile(input){
     DB=Object.assign(defaultState(),parsed);
     DB.meta=Object.assign(defaultState().meta,parsed.meta||{});
     DB.tasks=parsed.tasks||{};
+    DB.dailyTargets=parsed.dailyTargets||{};
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
-    Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic)}; });
+    Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
+    Object.keys(DB.subjects).forEach(k=>{
+      const s=DB.subjects[k];
+      if(!s.name)s.name=SYLLABUS[k]?SYLLABUS[k].label:k;
+      if(!s.icon)s.icon=SYLLABUS[k]?SYLLABUS[k].icon:DEFAULT_TOPIC_ICON;
+      if(s.color===undefined)s.color='';
+      if(s.builtin===undefined)s.builtin=!!SYLLABUS[k];
+    });
+    const savedOrder=Array.isArray(parsed.subjectOrder)?parsed.subjectOrder.filter(k=>DB.subjects[k]):[];
+    const missing=Object.keys(DB.subjects).filter(k=>!savedOrder.includes(k));
+    DB.subjectOrder=[...savedOrder,...missing];
     if(DB.meta.dark)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
     document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
-    pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.mode='Work'; pomo.running=false;
+    pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false;
     input.value='';
-    scheduleSave(); render();
+    scheduleSave(); render(); renderFloatingTimer();
   };
   reader.readAsText(file);
 }
 
+/* ================= SUBJECT HELPERS (built-in + custom, unified) ================= */
+function subjectKeys(){return DB.subjectOrder.filter(k=>DB.subjects[k]);}
+function subjLabel(key){const s=DB.subjects[key];return s&&s.name?s.name:(SYLLABUS[key]?SYLLABUS[key].label:key);}
+function subjIcon(key){const s=DB.subjects[key];return s&&s.icon?s.icon:(SYLLABUS[key]?SYLLABUS[key].icon:DEFAULT_TOPIC_ICON);}
+function subjColor(key){const s=DB.subjects[key];return s&&s.color?s.color:'';}
+
 /* ================= DERIVED STATS ================= */
-function allTopics(){let t=[];Object.keys(DB.subjects).forEach(k=>t.push(...DB.subjects[k].topics.map(x=>({...x,subject:k}))));return t;}
+function allTopics(){let t=[];subjectKeys().forEach(k=>t.push(...DB.subjects[k].topics.map(x=>({...x,subject:k}))));return t;}
 function totalHours(){return DB.sessions.reduce((s,x)=>s+Number(x.hours||0),0);}
 function hoursOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.hours||0),0);}
 function hoursSince(daysBack){
@@ -141,6 +417,12 @@ function daysRemaining(){return Math.max(0,365-daysElapsed());}
 function pctYear(){return Math.min(100,(daysElapsed()/365*100));}
 function syllabusPct(){const t=allTopics();if(!t.length)return 0;const done=t.filter(x=>x.status==='Completed'||x.status==='Revised').length;return done/t.length*100;}
 function revisionPct(){const t=allTopics();if(!t.length)return 0;const done=t.filter(x=>x.revisions>0).length;return done/t.length*100;}
+/* ---- effective daily target (per-day override falls back to default) ---- */
+function effectiveTargetFor(dateStr){
+  const override=DB.dailyTargets[dateStr];
+  return (override!==undefined&&override!==null&&override!=='')?Number(override):Number(DB.meta.targetHoursToday);
+}
+function todayTarget(){return effectiveTargetFor(todayStr());}
 function subjectStats(key){
   const topics=DB.subjects[key].topics;
   const total=topics.length;
@@ -162,7 +444,7 @@ function revisionQueue(){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
         const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
-        out.push({name:t.name,subject:SYLLABUS[t.subject]?SYLLABUS[t.subject].label:t.subject,subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
+        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
       }
     }
   });
@@ -193,7 +475,7 @@ function examReadiness(){
   const syl=syllabusPct(), rev=revisionPct();
   const mockPerf=DB.mocks.length?Math.min(100,mockAvg()/(DB.meta.mockTargetScore||200)*100):0;
   const consistency=daysElapsed()?Math.min(100,daysStudied()/daysElapsed()*100):0;
-  const ca=subjectStats('currentAffairs').pct;
+  const ca=DB.subjects.currentAffairs?subjectStats('currentAffairs').pct:0;
   const score=syl*0.30+rev*0.25+mockPerf*0.20+consistency*0.15+ca*0.10;
   let label='Needs Improvement',cls='high';
   if(score>=75){label='Excellent';cls='low';}
@@ -204,29 +486,31 @@ function examReadiness(){
 function mistakeStats(){
   const total=DB.errors.length, fixed=DB.errors.filter(e=>e.fixed).length, pending=total-fixed;
   const byTopic={};
-  DB.errors.forEach(e=>{const key=(e.topic||'Unspecified')+' ('+(SYLLABUS[e.subject]?SYLLABUS[e.subject].label:e.subject)+')';byTopic[key]=(byTopic[key]||0)+1;});
+  DB.errors.forEach(e=>{const key=(e.topic||'Unspecified')+' ('+subjLabel(e.subject)+')';byTopic[key]=(byTopic[key]||0)+1;});
   const top5=Object.entries(byTopic).sort((a,b)=>b[1]-a[1]).slice(0,5);
   return {total,fixed,pending,pct:total?fixed/total*100:0,top5};
 }
 /* ---- smart daily review recommendations ---- */
 function dailyRecommendations(){
   const today=todayStr(); const out=[];
-  Object.keys(SYLLABUS).forEach(k=>{
+  subjectKeys().forEach(k=>{
     const subjSessions=DB.sessions.filter(s=>s.subject===k);
     const last=subjSessions.length?subjSessions.map(s=>s.date).sort().slice(-1)[0]:null;
     const gap=last?Math.floor((new Date(today)-new Date(last))/86400000):daysElapsed();
-    if(daysElapsed()>gap && gap>=4)out.push(`You haven't studied ${SYLLABUS[k].label} for ${gap} days.`);
+    if(daysElapsed()>gap && gap>=4)out.push(`You haven't studied ${subjLabel(k)} for ${gap} days.`);
   });
   allTopics().filter(t=>t.confidence<=2).slice(0,2).forEach(t=>out.push(`${t.name} confidence is still low.`));
   const qToday=questionsOn(today);
   if(qToday>0)out.push(`You solved ${qToday} questions today.`);
-  const caPct=subjectStats('currentAffairs').pct;
-  if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
+  if(DB.subjects.currentAffairs){
+    const caPct=subjectStats('currentAffairs').pct;
+    if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
+  }
   const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===t.toISOString().slice(0,10);});
   if(dueTomorrow.length)out.push(`Tomorrow prioritize revising ${dueTomorrow[0].name}.`);
   else{
     const weakest=allTopics().filter(t=>t.status!=='Completed'&&t.status!=='Revised').sort((a,b)=>a.confidence-b.confidence)[0];
-    if(weakest)out.push(`Tomorrow prioritize ${weakest.name} (${SYLLABUS[weakest.subject].label}).`);
+    if(weakest)out.push(`Tomorrow prioritize ${weakest.name} (${subjLabel(weakest.subject)}).`);
   }
   if(!out.length)out.push('No red flags today — keep the pace steady.');
   return out;
@@ -275,6 +559,7 @@ function render(){
   else if(currentTab==='mocks')view.innerHTML=renderMocksPage();
   else if(currentTab==='settings')view.innerHTML=renderSettingsPage();
   afterRenderHooks();
+  closeMobileSidebar();
 }
 
 /* ================= STUDY / GOALS / MOCKS PAGE DISPATCHERS ================= */
@@ -309,7 +594,8 @@ function renderMocksPage(){
 /* ================= DASHBOARD (daily home screen) ================= */
 function renderDashboard(){
   const today=todayStr();
-  const target=DB.meta.targetHoursToday;
+  const target=todayTarget();
+  const isOverride=DB.dailyTargets[today]!==undefined&&DB.dailyTargets[today]!==null&&DB.dailyTargets[today]!=='';
   const th=todayStudyTime();
   const tasks=DB.tasks[today]||[];
   const doneCount=tasks.filter(t=>t.done).length;
@@ -318,7 +604,14 @@ function renderDashboard(){
   const quote=QUOTES[new Date().getDate()%QUOTES.length];
   return `
   <div class="grid g3">
-    <div class="card stat"><div class="label">Today's Target</div><div class="value">${target}h</div></div>
+    <div class="card stat">
+      <div class="flexbetween">
+        <div class="label">Today's Goal</div>
+        <button class="icon-only" data-action="editTodayTarget" title="Edit today's target">✏</button>
+      </div>
+      <div class="value">${th.toFixed(1)} / ${target}h</div>
+      <div class="sub">${isOverride?'Custom target for today':'Using default daily target'}</div>
+    </div>
     <div class="card stat"><div class="label">365-Day Countdown</div><div class="value">${daysRemaining()}d left</div><div class="sub">Day ${daysElapsed()} of 365</div></div>
     <div class="card stat"><div class="label">Questions Solved Today</div><div class="value">${questionsOn(today)}</div></div>
   </div>
@@ -410,12 +703,17 @@ function renderRevision(){
 /* ================= SUBJECTS ================= */
 function renderSubjects(){
   if(openSubject) return renderSubjectDetail(openSubject);
-  return `<div class="grid g3">
-  ${Object.keys(SYLLABUS).map(k=>{
+  return `<div class="flexbetween" style="margin-bottom:4px;">
+    <span class="hint" style="font-size:11.5px;color:var(--text-faint);">Drag cards to reorder</span>
+    <button class="btn sm" data-action="openAddSubject">+ Add Subject</button>
+  </div>
+  <div class="grid g3" id="subjectGrid">
+  ${subjectKeys().map(k=>{
     const st=subjectStats(k);
-    return `<div class="card subjectcard" data-action="openSubject" data-key="${k}">
-      <div class="flexbetween"><h3 style="margin:0;font-size:14.5px;">${SYLLABUS[k].icon} ${SYLLABUS[k].label}</h3><span class="tag ${DB.subjects[k].priority==='High'?'high':DB.subjects[k].priority==='Low'?'low':'med'}">${DB.subjects[k].priority}</span></div>
-      <div class="bar" style="margin-top:10px;"><span style="width:${st.pct}%"></span></div>
+    const col=subjColor(k);
+    return `<div class="card subjectcard" draggable="true" data-subj-drag="${k}" data-action="openSubject" data-key="${k}" style="${col?`border-top:3px solid ${col};`:''}">
+      <div class="flexbetween"><h3 style="margin:0;font-size:14.5px;">${subjIcon(k)} ${esc(subjLabel(k))}</h3><span class="tag ${DB.subjects[k].priority==='High'?'high':DB.subjects[k].priority==='Low'?'low':'med'}">${DB.subjects[k].priority}</span></div>
+      <div class="bar" style="margin-top:10px;"><span style="width:${st.pct}%${col?`;background:${col};`:''}"></span></div>
       <div class="sub" style="margin-top:4px;">${st.completed}/${st.total} topics · ${st.pct.toFixed(0)}%</div>
       <div class="grid g2" style="margin-top:10px;gap:8px;">
         <div class="sub">Hours spent<br><b style="color:var(--text);">${st.hrs.toFixed(1)}h</b></div>
@@ -428,16 +726,22 @@ function renderSubjects(){
   </div>`;
 }
 function renderSubjectDetail(k){
-  const s=SYLLABUS[k]; const st=subjectStats(k); const topics=DB.subjects[k].topics;
+  if(!DB.subjects[k]){openSubject=null;return renderSubjects();}
+  const st=subjectStats(k); const topics=DB.subjects[k].topics;
+  const minDate=todayStr();
   return `
   <button class="btn ghost sm" data-action="closeSubject" style="margin-bottom:12px;">← All subjects</button>
   <div class="flexbetween">
-    <h2 style="margin:0;">${s.icon} ${s.label}</h2>
-    <label style="font-size:12px;color:var(--text-muted);">Priority
-      <select data-action="setPriority" data-key="${k}">
-        ${['High','Medium','Low'].map(p=>`<option ${DB.subjects[k].priority===p?'selected':''}>${p}</option>`).join('')}
-      </select>
-    </label>
+    <h2 style="margin:0;">${subjIcon(k)} ${esc(subjLabel(k))}</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <label style="font-size:12px;color:var(--text-muted);">Priority
+        <select data-action="setPriority" data-key="${k}">
+          ${['High','Medium','Low'].map(p=>`<option ${DB.subjects[k].priority===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </label>
+      <button class="btn ghost sm" data-action="openEditSubject" data-key="${k}">✏ Edit Subject</button>
+      <button class="btn danger sm" data-action="deleteSubject" data-key="${k}">🗑 Delete Subject</button>
+    </div>
   </div>
   <div class="grid g4" style="margin-top:12px;">
     <div class="card stat"><div class="label">Total Topics</div><div class="value">${st.total}</div></div>
@@ -455,17 +759,20 @@ function renderSubjectDetail(k){
     <div class="card"><div class="label">Strong Topics (confidence ≥4)</div><div style="margin-top:6px;">${st.strong.length?st.strong.map(w=>`<span class="tag low" style="margin:2px;">${esc(w)}</span>`).join(''):'<span class="sub">None yet</span>'}</div></div>
   </div>
   <div class="section-title"><h2>Topic Tracker</h2><span class="hint">Update inline — status, dates, confidence & time save instantly</span></div>
+  <div class="card" style="margin-bottom:10px;">
+    <button class="btn sm" data-action="openAddTopic" data-key="${k}">+ Add Topic</button>
+  </div>
   <div class="card" style="overflow-x:auto;">
   <table><thead><tr>
-    <th>Topic</th><th>Status</th><th>Target Date</th><th>Completion</th><th>Time (h)</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th>Notes</th><th>Mistakes</th>
+    <th>Topic</th><th>Status</th><th>Target Date</th><th>Completion</th><th>Time (h)</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th>Notes</th><th>Mistakes</th><th></th>
   </tr></thead><tbody>
   ${topics.map(t=>`<tr data-topic="${t.id}">
-    <td style="min-width:160px;">${esc(t.name)}</td>
+    <td style="min-width:160px;">${esc(t.name)} <button class="icon-only" data-action="openEditTopicName" data-topic="${t.id}" data-key="${k}" title="Rename topic">✏</button></td>
     <td><select data-field="status" data-topic="${t.id}" data-key="${k}">
       ${['Not Started','In Progress','Completed','Revised'].map(o=>`<option ${t.status===o?'selected':''}>${o}</option>`).join('')}
     </select></td>
-    <td><input type="date" value="${t.targetDate}" data-field="targetDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
-    <td><input type="date" value="${t.completionDate}" data-field="completionDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
+    <td><input type="date" value="${t.targetDate}" min="${minDate}" data-field="targetDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
+    <td><input type="date" value="${t.completionDate}" min="${minDate}" data-field="completionDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
     <td><input type="number" step="0.5" min="0" value="${t.timeSpent}" data-field="timeSpent" data-topic="${t.id}" data-key="${k}" style="width:60px;"></td>
     <td><select data-field="confidence" data-topic="${t.id}" data-key="${k}">${[1,2,3,4,5].map(n=>`<option ${t.confidence==n?'selected':''}>${n}</option>`).join('')}</select></td>
     <td><select data-field="difficulty" data-topic="${t.id}" data-key="${k}">${['Easy','Medium','Hard'].map(o=>`<option ${t.difficulty===o?'selected':''}>${o}</option>`).join('')}</select></td>
@@ -475,14 +782,16 @@ function renderSubjectDetail(k){
     </td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="notes" title="Edit notes">📝${t.notes?'<span class=\"notes-preview\">'+esc(t.notes.slice(0,14))+'</span>':''}</button></td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="mistakes" title="Edit mistakes">⚠${t.mistakes?'<span class=\"notes-preview\">'+esc(t.mistakes.slice(0,14))+'</span>':''}</button></td>
+    <td><button class="icon-only" data-action="deleteTopic" data-topic="${t.id}" data-key="${k}" title="Delete topic">🗑</button></td>
   </tr>`).join('')}
   </tbody></table>
+  ${topics.length===0?'<div class="emptystate">No topics yet — add your first one above.</div>':''}
   </div>`;
 }
 
 /* ================= DAILY LOG ================= */
 function ensureLogForm(){
-  if(!formTemp.log)formTemp.log={date:todayStr(),start:'',end:'',hours:'',subject:'quant',topic:'',subtopic:'',qSolved:'',qCorrect:'',qWrong:'',source:'',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:'',revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:''};
+  if(!formTemp.log)formTemp.log={date:todayStr(),start:'',end:'',hours:'',subject:subjectKeys()[0]||'',topic:'',subtopic:'',qSolved:'',qCorrect:'',qWrong:'',source:'',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:'',revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:''};
 }
 function renderLog(){
   ensureLogForm();
@@ -496,7 +805,7 @@ function renderLog(){
       <label>Start <input type="time" id="f_start" value="${f.start}"></label>
       <label>End <input type="time" id="f_end" value="${f.end}"></label>
       <label>Total Hours <input type="number" step="0.25" min="0" id="f_hours" value="${f.hours}" placeholder="auto or manual"></label>
-      <label>Subject <select id="f_subject">${Object.keys(SYLLABUS).map(k=>`<option value="${k}" ${f.subject===k?'selected':''}>${SYLLABUS[k].label}</option>`).join('')}</select></label>
+      <label>Subject <select id="f_subject">${subjectKeys().map(k=>`<option value="${k}" ${f.subject===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}</select></label>
       <label>Topic <input type="text" id="f_topic" value="${esc(f.topic)}" placeholder="e.g. Algebra"></label>
       <label>Subtopic <input type="text" id="f_subtopic" value="${esc(f.subtopic)}"></label>
       <label>Questions Solved <input type="number" min="0" id="f_qSolved" value="${f.qSolved}"></label>
@@ -524,7 +833,7 @@ function renderLog(){
   <table><thead><tr><th>Date</th><th>Hrs</th><th>Subject</th><th>Topic</th><th>Qs</th><th>Accuracy</th><th>Mood</th><th>Focus</th><th></th></tr></thead><tbody>
   ${sorted.map(s=>{
     const acc=s.qSolved>0?(s.qCorrect/s.qSolved*100).toFixed(0)+'%':'—';
-    return `<tr><td>${s.date}</td><td>${Number(s.hours).toFixed(1)}</td><td>${SYLLABUS[s.subject]?SYLLABUS[s.subject].label:s.subject}</td><td>${esc(s.topic)}</td><td>${s.qSolved||0}</td><td>${acc}</td><td>${s.mood}</td><td>${s.focus}</td>
+    return `<tr><td>${s.date}</td><td>${Number(s.hours).toFixed(1)}</td><td>${esc(subjLabel(s.subject))}</td><td>${esc(s.topic)}</td><td>${s.qSolved||0}</td><td>${acc}</td><td>${s.mood}</td><td>${s.focus}</td>
     <td><button class="icon-only" data-action="deleteSession" data-id="${s.id}">🗑</button></td></tr>`;
   }).join('')}
   </tbody></table>`}
@@ -716,7 +1025,7 @@ function renderPyq(){
 }
 
 /* ================= ERROR LOG ================= */
-function ensureErrorForm(){if(!formTemp.error)formTemp.error={question:'',subject:'quant',topic:'',why:'',concept:'',revisionNeeded:true,fixed:false};}
+function ensureErrorForm(){if(!formTemp.error)formTemp.error={question:'',subject:subjectKeys()[0]||'',topic:'',why:'',concept:'',revisionNeeded:true,fixed:false};}
 function renderErrors(){
   ensureErrorForm(); const f=formTemp.error;
   const ms=mistakeStats();
@@ -737,7 +1046,7 @@ function renderErrors(){
     <div class="label" style="margin-bottom:10px;">New Entry</div>
     <div class="formgrid">
       <label>Question <input type="text" id="e_question" value="${esc(f.question)}"></label>
-      <label>Subject <select id="e_subject">${Object.keys(SYLLABUS).map(k=>`<option value="${k}" ${f.subject===k?'selected':''}>${SYLLABUS[k].label}</option>`).join('')}</select></label>
+      <label>Subject <select id="e_subject">${subjectKeys().map(k=>`<option value="${k}" ${f.subject===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}</select></label>
       <label>Topic <input type="text" id="e_topic" value="${esc(f.topic)}"></label>
       <label style="flex-direction:row;align-items:center;gap:6px;">Revision needed <input type="checkbox" id="e_revisionNeeded" ${f.revisionNeeded?'checked':''}></label>
       <label>Why Wrong <textarea id="e_why">${esc(f.why)}</textarea></label>
@@ -749,7 +1058,7 @@ function renderErrors(){
   <div class="card" style="overflow-x:auto;">
   ${DB.errors.length===0?'<div class="emptystate">No mistakes logged yet — good, but stay honest with yourself.</div>':`
   <table><thead><tr><th>Question</th><th>Subject</th><th>Topic</th><th>Fixed?</th><th></th></tr></thead><tbody>
-  ${DB.errors.map(e=>`<tr><td style="max-width:220px;">${esc(e.question)}</td><td>${SYLLABUS[e.subject]?SYLLABUS[e.subject].label:e.subject}</td><td>${esc(e.topic)}</td>
+  ${DB.errors.map(e=>`<tr><td style="max-width:220px;">${esc(e.question)}</td><td>${esc(subjLabel(e.subject))}</td><td>${esc(e.topic)}</td>
   <td><input type="checkbox" data-action="toggleErrorFixed" data-id="${e.id}" ${e.fixed?'checked':''}></td>
   <td><button class="icon-only" data-action="deleteError" data-id="${e.id}">🗑</button></td></tr>`).join('')}
   </tbody></table>`}
@@ -782,7 +1091,7 @@ function renderAnalytics(){
   </div>
   <div class="section-title"><h2>Topic Completion Trend</h2></div>
   <div class="grid g3">
-    ${Object.keys(SYLLABUS).map(k=>{const st=subjectStats(k);return `<div class="card"><div class="label">${SYLLABUS[k].label}</div><div class="bar"><span style="width:${st.pct}%"></span></div><div class="sub">${st.pct.toFixed(0)}% complete</div></div>`;}).join('')}
+    ${subjectKeys().map(k=>{const st=subjectStats(k);return `<div class="card"><div class="label">${esc(subjLabel(k))}</div><div class="bar"><span style="width:${st.pct}%"></span></div><div class="sub">${st.pct.toFixed(0)}% complete</div></div>`;}).join('')}
   </div>
   <div class="section-title"><h2>Consistency</h2></div>
   <div class="grid g3">
@@ -806,10 +1115,10 @@ function renderReviews(){
   const weekSessions=DB.sessions.filter(s=>new Date(s.date)>=weekAgo);
   const weekHours=weekSessions.reduce((a,b)=>a+Number(b.hours||0),0);
   const bySubjWeek={}; weekSessions.forEach(s=>{bySubjWeek[s.subject]=(bySubjWeek[s.subject]||0)+Number(s.hours||0);});
-  const neglected=Object.keys(SYLLABUS).filter(k=>!bySubjWeek[k]);
+  const neglected=subjectKeys().filter(k=>!bySubjWeek[k]);
   const sortedSubj=Object.keys(bySubjWeek).sort((a,b)=>bySubjWeek[b]-bySubjWeek[a]);
-  const strongest=sortedSubj[0]?SYLLABUS[sortedSubj[0]].label:'—';
-  const weakest=neglected[0]?SYLLABUS[neglected[0]].label:(sortedSubj[sortedSubj.length-1]?SYLLABUS[sortedSubj[sortedSubj.length-1]].label:'—');
+  const strongest=sortedSubj[0]?subjLabel(sortedSubj[0]):'—';
+  const weakest=neglected[0]?subjLabel(neglected[0]):(sortedSubj[sortedSubj.length-1]?subjLabel(sortedSubj[sortedSubj.length-1]):'—');
 
   const monthAgo=new Date(); monthAgo.setDate(now.getDate()-30);
   const monthSessions=DB.sessions.filter(s=>new Date(s.date)>=monthAgo);
@@ -825,15 +1134,15 @@ Topics covered: ${topicsCovered.length?topicsCovered.join(', '):'None logged'}
 Accuracy: ${acc}
 Weak areas to watch: ${weak.length?weak.join(', '):'None flagged'}
 Missed goals: ${DB.goals.filter(g=>g.type==='Daily'&&g.status!=='Completed').length} daily goal(s) still open
-Suggestion: ${th<DB.meta.targetHoursToday?"You are below today's target — consider a short focused session before bed.":"Target met — use spare time for revision."}</div>
+Suggestion: ${th<todayTarget()?"You are below today's target — consider a short focused session before bed.":"Target met — use spare time for revision."}</div>
 
   <div class="section-title"><h2>Weekly Review</h2></div>
   <div class="card review-block">Total hours (7d): ${weekHours.toFixed(1)}h
-Subjects neglected: ${neglected.length?neglected.map(k=>SYLLABUS[k].label).join(', '):'None — solid coverage'}
+Subjects neglected: ${neglected.length?neglected.map(k=>subjLabel(k)).join(', '):'None — solid coverage'}
 Strongest subject this week: ${strongest}
 Weakest / most neglected: ${weakest}
 Consistency score: ${(new Set(weekSessions.map(s=>s.date)).size/7*100).toFixed(0)}%
-Recommendation: ${neglected.length?'Rotate in '+SYLLABUS[neglected[0]].label+' before Sunday.':'Maintain current rotation, add a mock test.'}</div>
+Recommendation: ${neglected.length?'Rotate in '+subjLabel(neglected[0])+' before Sunday.':'Maintain current rotation, add a mock test.'}</div>
 
   <div class="section-title"><h2>Monthly Review</h2></div>
   <div class="card review-block">Study hours (30d): ${monthHours.toFixed(1)}h
@@ -846,6 +1155,7 @@ Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabus
 }
 
 /* ================= STUDY NOTES (quick notes + formulas + vocab) ================= */
+// pomo now doubles as the floating Pomodoro widget's engine (see FLOATING POMODORO section below)
 let pomo={seconds:25*60,running:false,mode:'Work',interval:null};
 function ensureExtrasTemp(){if(!formTemp.formula)formTemp.formula={text:''}; if(!formTemp.vocab)formTemp.vocab={word:'',meaning:''};}
 function renderStudyNotes(){
@@ -887,6 +1197,8 @@ function renderSettingsPage(){
   const dark=document.documentElement.classList.contains('dark');
   const accent=DB.meta.accent||'maroon';
   const swatches=[['maroon','#b3164f'],['rose','#e91e63'],['berry','#9c2861'],['crimson','#b3212d']];
+  const presets=[[25,5],[30,5],[45,10],[50,10],[90,15]];
+  const isPreset=presets.some(p=>p[0]===DB.meta.pomoWork&&p[1]===DB.meta.pomoBreak);
   return `
   <div class="section-title"><h2>Appearance</h2></div>
   <div class="card">
@@ -905,7 +1217,7 @@ function renderSettingsPage(){
   <div class="section-title"><h2>Study Defaults</h2></div>
   <div class="card">
     <div class="settings-row">
-      <div><div class="srlabel">Default Daily Hours</div><div class="srhint">Used as today's target on the Dashboard</div></div>
+      <div><div class="srlabel">Default Daily Hours</div><div class="srhint">Used as today's target on the Dashboard, unless overridden for a specific day</div></div>
       <input type="number" step="0.5" min="1" style="width:70px;" value="${DB.meta.targetHoursToday}" data-action="setTarget">
     </div>
     <div class="settings-row">
@@ -921,21 +1233,43 @@ function renderSettingsPage(){
   <div class="section-title"><h2>Pomodoro Settings</h2></div>
   <div class="card">
     <div class="settings-row">
+      <div><div class="srlabel">Show Floating Study Timer</div><div class="srhint">Show the draggable Pomodoro widget on every page</div></div>
+      <label class="checkbox-row"><input type="checkbox" data-action="toggleShowFloating" ${DB.meta.showFloatingTimer?'checked':''}></label>
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div><div class="srlabel">Duration Preset</div><div class="srhint">Study / Break minutes</div></div>
+      <div class="tabsrow">
+        ${presets.map(([w,b])=>`<button class="${DB.meta.pomoWork===w&&DB.meta.pomoBreak===b?'active':''}" data-action="setPomoPreset" data-work="${w}" data-break="${b}">${w} / ${b}</button>`).join('')}
+        <button class="${!isPreset?'active':''}" data-action="focusCustomPomo">Custom</button>
+      </div>
+    </div>
+    <div class="settings-row">
       <div><div class="srlabel">Work Duration (minutes)</div></div>
-      <input type="number" min="1" style="width:70px;" value="${DB.meta.pomoWork||25}" data-action="setPomoWork">
+      <input type="number" min="1" style="width:70px;" id="pomoWorkInput" value="${DB.meta.pomoWork||25}" data-action="setPomoWork">
     </div>
     <div class="settings-row">
       <div><div class="srlabel">Break Duration (minutes)</div></div>
-      <input type="number" min="1" style="width:70px;" value="${DB.meta.pomoBreak||5}" data-action="setPomoBreak">
+      <input type="number" min="1" style="width:70px;" id="pomoBreakInput" value="${DB.meta.pomoBreak||5}" data-action="setPomoBreak">
     </div>
-    <div style="margin-top:16px;text-align:center;">
-      <div class="pomo-display" id="pomoDisplay">${fmtTime(pomo.seconds)}</div>
-      <div class="sub" style="text-align:center;">${pomo.mode} session</div>
-      <div class="pomo-controls">
-        <button class="btn sm" data-action="pomoStart">${pomo.running?'Pause':'Start'}</button>
-        <button class="btn ghost sm" data-action="pomoReset">Reset</button>
-        <button class="btn ghost sm" data-action="pomoSwitch">Switch to ${pomo.mode==='Work'?'Break':'Work'}</button>
-      </div>
+    <div class="settings-row">
+      <div><div class="srlabel">Auto-switch Study ↔ Break</div><div class="srhint">Automatically start the next session when the timer ends</div></div>
+      <label class="checkbox-row"><input type="checkbox" data-action="togglePomoAuto" ${DB.meta.pomoAutoTransition?'checked':''}></label>
+    </div>
+    <div class="settings-row">
+      <div><div class="srlabel">Sound Notification</div><div class="srhint">Play a short beep when a session ends</div></div>
+      <label class="checkbox-row"><input type="checkbox" data-action="togglePomoSound" ${DB.meta.pomoSound?'checked':''}></label>
+    </div>
+    <div class="settings-row">
+      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends</div></div>
+      <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Subjects</h2></div>
+  <div class="card">
+    <div class="settings-row">
+      <div><div class="srlabel">Manage Subjects</div><div class="srhint">Add, edit, reorder, or delete subjects from the Study → Subjects tab</div></div>
+      <button class="btn ghost sm" data-action="goSubjects">Go to Subjects</button>
     </div>
   </div>
 
@@ -959,44 +1293,155 @@ function renderSettingsPage(){
     </div>
   </div>
 
-  <div class="version-tag">AtlasTrackIt · v1.0.0</div>
+  <div class="version-tag">AtlasTrackIt · v1.1.0</div>
   `;
 }
 function fmtTime(sec){const m=Math.floor(sec/60).toString().padStart(2,'0');const s=(sec%60).toString().padStart(2,'0');return m+':'+s;}
 function fmtHMS(sec){const h=Math.floor(sec/3600).toString().padStart(2,'0');const m=Math.floor((sec%3600)/60).toString().padStart(2,'0');const s=Math.floor(sec%60).toString().padStart(2,'0');return h+':'+m+':'+s;}
 function fmtHrsMin(hrs){const h=Math.floor(hrs);const m=Math.round((hrs-h)*60);return h+'h '+m+'m';}
 
-/* ================= FLOATING STUDY TIMER ================= */
-let studyTimer={seconds:0,running:false};
+/* ================= FLOATING POMODORO WIDGET =================
+   Draggable, minimizable, closable widget that persists across page/tab
+   navigation. Position, minimized state and visibility are saved in DB.meta
+   so they survive reloads. The countdown only resets when the user presses
+   Reset — navigating tabs never touches it. */
+let studyTimer={seconds:0,running:false}; // tracks total elapsed "Work" seconds today, feeds the dashboard ring
+let dragState=null;
+
+function playBeep(){
+  if(!DB.meta.pomoSound)return;
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.0001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.5);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.55);
+  }catch(e){/* audio not available */}
+}
+function notifySessionEnd(nextMode){
+  if(!DB.meta.pomoNotify)return;
+  if(typeof Notification==='undefined')return;
+  const fire=()=>new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
+  if(Notification.permission==='granted')fire();
+  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
+}
+function pomoDurationSeconds(mode){return (mode==='Work'?(DB.meta.pomoWork||25):(DB.meta.pomoBreak||5))*60;}
+function pomoTick(){
+  pomo.seconds--;
+  if(pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds++;
+  if(pomo.seconds<=0){
+    playBeep();
+    const finishedMode=pomo.mode;
+    const nextMode=finishedMode==='Work'?'Break':'Work';
+    notifySessionEnd(nextMode);
+    if(DB.meta.pomoAutoTransition){
+      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+      studyTimer.running=(nextMode==='Work');
+    }else{
+      pomo.running=false; clearInterval(pomo.interval);
+      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+      studyTimer.running=false;
+    }
+  }
+  updateFloatingTimerUI();
+}
+function pomoStartPause(){
+  pomo.running=!pomo.running;
+  if(pomo.running){
+    if(pomo.mode==='Work')studyTimer.running=true;
+    pomo.interval=setInterval(pomoTick,1000);
+  }else{
+    clearInterval(pomo.interval); studyTimer.running=false;
+  }
+  updateFloatingTimerUI();
+}
+function pomoReset(){
+  clearInterval(pomo.interval); pomo.running=false; studyTimer.running=false;
+  pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
+  updateFloatingTimerUI();
+}
+
 function renderFloatingTimer(){
+  const old=document.getElementById('floatingTimer'); if(old)old.remove();
+  if(!DB.meta.showFloatingTimer)return;
+  const pos=DB.meta.floatingPos;
+  const minimized=DB.meta.floatingMinimized;
   const div=document.createElement('div');
   div.id='floatingTimer';
-  div.style.cssText='position:fixed;bottom:18px;right:18px;background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:12px 14px;z-index:60;min-width:190px;font-family:var(--font-body);';
+  div.className=minimized?'minimized':'';
+  if(pos){div.style.left=pos.x+'px'; div.style.top=pos.y+'px'; div.style.right='auto'; div.style.bottom='auto';}
   div.innerHTML=`
-    <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;">Current Session</div>
-    <div class="mono" id="floatSessionTime" style="font-size:20px;font-weight:700;margin:2px 0 6px;">${fmtHMS(studyTimer.seconds)}</div>
-    <div style="font-size:10px;color:var(--text-faint);" id="floatTodayTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
-    <div style="display:flex;gap:6px;margin-top:8px;">
-      <button class="btn sm" data-action="studyTimerToggle" id="floatToggleBtn">${studyTimer.running?'Pause':'Start'}</button>
-      <button class="btn ghost sm" data-action="studyTimerReset">Reset</button>
+    <div id="floatDragHandle" class="float-drag-handle">
+      <span class="float-mode-tag">${pomo.mode==='Work'?'🎯 Study':'☕ Break'}</span>
+      <div class="float-win-btns">
+        <button class="icon-only" data-action="floatMinToggle" title="${minimized?'Expand':'Minimize'}">${minimized?'▢':'—'}</button>
+        <button class="icon-only" data-action="floatClose" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="float-body" ${minimized?'style="display:none;"':''}>
+      <div class="mono" id="floatSessionTime" style="font-size:24px;font-weight:700;text-align:center;margin:4px 0;">${fmtTime(pomo.seconds)}</div>
+      <div class="sub" style="text-align:center;" id="floatTodayTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn sm" data-action="pomoStart" style="flex:1;">${pomo.running?'Pause':'Start'}</button>
+        <button class="btn ghost sm" data-action="pomoResetBtn">Reset</button>
+      </div>
     </div>`;
   document.body.appendChild(div);
+  attachDragHandlers(div);
 }
-function tickFloatingTimer(){
-  if(studyTimer.running)studyTimer.seconds++;
-  const t=document.getElementById('floatSessionTime'); if(t)t.textContent=fmtHMS(studyTimer.seconds);
+function updateFloatingTimerUI(){
+  const t=document.getElementById('floatSessionTime'); if(t)t.textContent=fmtTime(pomo.seconds);
   const tot=document.getElementById('floatTodayTotal'); if(tot)tot.textContent='Today: '+fmtHrsMin(todayStudyTime());
+  const modeTag=document.querySelector('#floatingTimer .float-mode-tag'); if(modeTag)modeTag.textContent=pomo.mode==='Work'?'🎯 Study':'☕ Break';
+  const startBtn=document.querySelector('#floatingTimer [data-action="pomoStart"]'); if(startBtn)startBtn.textContent=pomo.running?'Pause':'Start';
+  // keep dashboard ring / today-target card in sync while the timer runs
+  if(currentTab==='dashboard' && pomo.running) render();
+}
+function tickFloatingTimer(){ /* legacy hook kept for interval cadence; pomoTick drives the real countdown */ }
+function attachDragHandlers(div){
+  const handle=div.querySelector('#floatDragHandle');
+  const start=(clientX,clientY)=>{
+    const rect=div.getBoundingClientRect();
+    dragState={offX:clientX-rect.left,offY:clientY-rect.top};
+  };
+  const move=(clientX,clientY)=>{
+    if(!dragState)return;
+    let x=clientX-dragState.offX, y=clientY-dragState.offY;
+    x=Math.max(4,Math.min(window.innerWidth-60,x));
+    y=Math.max(4,Math.min(window.innerHeight-40,y));
+    div.style.left=x+'px'; div.style.top=y+'px'; div.style.right='auto'; div.style.bottom='auto';
+  };
+  const end=()=>{
+    if(!dragState)return;
+    dragState=null;
+    const rect=div.getBoundingClientRect();
+    DB.meta.floatingPos={x:rect.left,y:rect.top}; scheduleSave();
+  };
+  handle.addEventListener('mousedown',e=>{ if(e.target.closest('.float-win-btns'))return; start(e.clientX,e.clientY); e.preventDefault(); });
+  document.addEventListener('mousemove',e=>move(e.clientX,e.clientY));
+  document.addEventListener('mouseup',end);
+  handle.addEventListener('touchstart',e=>{ if(e.target.closest('.float-win-btns'))return; const t=e.touches[0]; start(t.clientX,t.clientY); },{passive:true});
+  document.addEventListener('touchmove',e=>{ if(!dragState)return; const t=e.touches[0]; move(t.clientX,t.clientY); },{passive:true});
+  document.addEventListener('touchend',end);
 }
 
 /* ================= MODAL ================= */
 function openModal(html){document.getElementById('modalRoot').innerHTML=`<div class="modal-overlay" data-action="closeModalBg"><div class="modal" data-stop>${html}</div></div>`;}
 function closeModal(){document.getElementById('modalRoot').innerHTML='';}
 
+/* ================= MOBILE SIDEBAR ================= */
+function openMobileSidebar(){document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show');}
+function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show');}
+
 /* ================= EVENT HANDLING ================= */
 document.addEventListener('click',e=>{
   if(e.target.closest('[data-stop]') && e.target.closest('.modal-overlay') && !e.target.closest('[data-action]')) return;
   const bg=e.target.closest('[data-action="closeModalBg"]');
   if(bg && e.target===bg){closeModal();return;}
+  if(e.target.id==='sidebarOverlay'){closeMobileSidebar();return;}
   const btn=e.target.closest('[data-action]');
   if(!btn)return;
   const action=btn.dataset.action;
@@ -1015,8 +1460,15 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setQuestionTarget'){ DB.meta.questionTarget=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
-  if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); render(); }
-  if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); render(); }
+  if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); render(); updateFloatingTimerUI(); }
+  if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); render(); updateFloatingTimerUI(); }
+  if(t.dataset.action==='toggleShowFloating'){ DB.meta.showFloatingTimer=t.checked; scheduleSave(); renderFloatingTimer(); }
+  if(t.dataset.action==='togglePomoAuto'){ DB.meta.pomoAutoTransition=t.checked; scheduleSave(); }
+  if(t.dataset.action==='togglePomoSound'){ DB.meta.pomoSound=t.checked; scheduleSave(); }
+  if(t.dataset.action==='togglePomoNotify'){
+    DB.meta.pomoNotify=t.checked; scheduleSave();
+    if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default')Notification.requestPermission();
+  }
   if(t.id==='importFile'){ importDataFromFile(t); }
 });
 document.addEventListener('input',e=>{
@@ -1025,8 +1477,13 @@ document.addEventListener('input',e=>{
 
 function handleTopicField(t){
   const key=t.dataset.key, topicId=t.dataset.topic, field=t.dataset.field;
-  const topic=DB.subjects[key].topics.find(x=>x.id===topicId);
+  const subj=DB.subjects[key]; if(!subj)return;
+  const topic=subj.topics.find(x=>x.id===topicId); if(!topic)return;
   let val=t.value;
+  if((field==='targetDate'||field==='completionDate') && val && val<todayStr()){
+    alert('Past dates are not allowed for '+(field==='targetDate'?'Target Date':'Completion Date')+'. Resetting to today.');
+    val=todayStr(); t.value=val;
+  }
   if(field==='timeSpent'||field==='confidence')val=Number(val);
   topic[field]=val;
   if(field==='status'&&val==='Completed'&&!topic.completionDate)topic.completionDate=todayStr();
@@ -1039,12 +1496,15 @@ function handleAction(action,btn){
   const d=btn.dataset;
   if(action==='tab'){currentTab=d.tab; openSubject=null; render(); return;}
   if(action==='subtab'){currentSubtab[d.tabgroup]=d.sub; openSubject=null; render(); return;}
+  if(action==='openMobileSidebar'){openMobileSidebar(); return;}
+  if(action==='closeMobileSidebar'){closeMobileSidebar(); return;}
   if(action==='setAccent'){DB.meta.accent=d.accent; document.documentElement.setAttribute('data-accent',d.accent); scheduleSave(); render(); return;}
   if(action==='resetData'){
     if(!confirm('This will permanently erase all your data and cannot be undone. Continue?'))return;
-    DB=defaultState(); scheduleSave(); render(); return;
+    DB=defaultState(); scheduleSave(); render(); renderFloatingTimer(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
+  if(action==='goSubjects'){currentTab='study'; currentSubtab.study='subjects'; openSubject=null; render(); return;}
   if(action==='openSubject'){openSubject=d.key; render(); return;}
   if(action==='closeSubject'){openSubject=null; render(); return;}
   if(action==='addRevision'){
@@ -1065,6 +1525,101 @@ function handleAction(action,btn){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
     topic[d.field]=document.getElementById('modalTextarea').value;
     scheduleSave(); closeModal(); render(); return;
+  }
+  /* ---- Today's target quick editor ---- */
+  if(action==='editTodayTarget'){
+    const today=todayStr();
+    const cur=DB.dailyTargets[today]!==undefined&&DB.dailyTargets[today]!==null&&DB.dailyTargets[today]!==''?DB.dailyTargets[today]:'';
+    openModal(`<h3>Edit Today's Target</h3>
+    <p class="sub" style="margin:0 0 10px;">Default daily target: ${DB.meta.targetHoursToday}h. Leave blank to use the default.</p>
+    <input type="number" step="0.5" min="0" id="todayTargetInput" placeholder="e.g. 5" value="${cur}" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveTodayTarget">Save</button></div>`);
+    return;
+  }
+  if(action==='saveTodayTarget'){
+    const v=document.getElementById('todayTargetInput').value;
+    const today=todayStr();
+    if(v===''||v===null)delete DB.dailyTargets[today]; else DB.dailyTargets[today]=Number(v);
+    scheduleSave(); closeModal(); render(); return;
+  }
+  /* ---- Subject management ---- */
+  if(action==='openAddSubject'){
+    openModal(`<h3>Add Subject</h3>
+    <div class="formgrid" style="grid-template-columns:1fr;">
+      <label>Subject Name <input type="text" id="subjNameInput" placeholder="e.g. Programming"></label>
+      <label>Icon (emoji) <input type="text" id="subjIconInput" placeholder="💻" maxlength="4"></label>
+      <label>Accent Color <input type="color" id="subjColorInput" value="${DEFAULT_SUBJECT_COLORS[subjectKeys().length%DEFAULT_SUBJECT_COLORS.length]}" style="width:100%;height:36px;padding:2px;"></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveNewSubject">Add Subject</button></div>`);
+    return;
+  }
+  if(action==='saveNewSubject'){
+    const name=document.getElementById('subjNameInput').value.trim();
+    if(!name){alert('Please enter a subject name.'); return;}
+    const icon=document.getElementById('subjIconInput').value.trim()||DEFAULT_TOPIC_ICON;
+    const color=document.getElementById('subjColorInput').value||'';
+    const key=uid();
+    DB.subjects[key]={priority:'Medium',topics:[],name,icon,color,builtin:false};
+    DB.subjectOrder.push(key);
+    scheduleSave(); closeModal(); openSubject=null; render(); return;
+  }
+  if(action==='openEditSubject'){
+    const s=DB.subjects[d.key];
+    openModal(`<h3>Edit Subject</h3>
+    <div class="formgrid" style="grid-template-columns:1fr;">
+      <label>Subject Name <input type="text" id="subjNameInput" value="${esc(subjLabel(d.key))}"></label>
+      <label>Icon (emoji) <input type="text" id="subjIconInput" value="${esc(subjIcon(d.key))}" maxlength="4"></label>
+      <label>Accent Color <input type="color" id="subjColorInput" value="${subjColor(d.key)||'#b3164f'}" style="width:100%;height:36px;padding:2px;"></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveEditSubject" data-key="${d.key}">Save Changes</button></div>`);
+    return;
+  }
+  if(action==='saveEditSubject'){
+    const name=document.getElementById('subjNameInput').value.trim();
+    if(!name){alert('Please enter a subject name.'); return;}
+    const s=DB.subjects[d.key];
+    s.name=name;
+    s.icon=document.getElementById('subjIconInput').value.trim()||DEFAULT_TOPIC_ICON;
+    s.color=document.getElementById('subjColorInput').value||'';
+    scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='deleteSubject'){
+    if(!confirm('Delete "'+subjLabel(d.key)+'" and all its topics? This cannot be undone.'))return;
+    delete DB.subjects[d.key];
+    DB.subjectOrder=DB.subjectOrder.filter(k=>k!==d.key);
+    openSubject=null; scheduleSave(); render(); return;
+  }
+  /* ---- Topic management ---- */
+  if(action==='openAddTopic'){
+    openModal(`<h3>Add Topic</h3>
+    <input type="text" id="newTopicInput" placeholder="Topic name" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveNewTopic" data-key="${d.key}">Add Topic</button></div>`);
+    return;
+  }
+  if(action==='saveNewTopic'){
+    const name=document.getElementById('newTopicInput').value.trim();
+    if(!name)return;
+    DB.subjects[d.key].topics.push(freshTopic(name));
+    scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='openEditTopicName'){
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    openModal(`<h3>Rename Topic</h3>
+    <input type="text" id="renameTopicInput" value="${esc(topic.name)}" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveTopicName" data-key="${d.key}" data-topic="${d.topic}">Save</button></div>`);
+    return;
+  }
+  if(action==='saveTopicName'){
+    const v=document.getElementById('renameTopicInput').value.trim();
+    if(!v)return;
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    topic.name=v; scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='deleteTopic'){
+    if(!confirm('Delete this topic? This cannot be undone.'))return;
+    const subj=DB.subjects[d.key];
+    subj.topics=subj.topics.filter(x=>x.id!==d.topic);
+    scheduleSave(); render(); return;
   }
   if(action==='saveSession'){
     const g=id=>document.getElementById(id);
@@ -1127,14 +1682,29 @@ function handleAction(action,btn){
     DB.notes.vocab.push({id:uid(),word:w,meaning:m}); formTemp.vocab={word:'',meaning:''}; scheduleSave(); render(); return;
   }
   if(action==='deleteVocab'){DB.notes.vocab=DB.notes.vocab.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
-  if(action==='pomoStart'){
-    pomo.running=!pomo.running;
-    if(pomo.running){pomo.interval=setInterval(()=>{pomo.seconds--; if(pomo.seconds<=0){clearInterval(pomo.interval); pomo.running=false; pomo.seconds=pomo.mode==='Work'?(DB.meta.pomoWork||25)*60:(DB.meta.pomoBreak||5)*60;} updatePomoDisplay();},1000);}
-    else clearInterval(pomo.interval);
-    render(); return;
+  /* ---- Floating Pomodoro controls ---- */
+  if(action==='pomoStart'){ pomoStartPause(); return; }
+  if(action==='pomoResetBtn'){
+    if(!confirm('Reset the current Pomodoro session?'))return;
+    pomoReset(); return;
   }
-  if(action==='pomoReset'){clearInterval(pomo.interval); pomo.running=false; pomo.seconds=pomo.mode==='Work'?(DB.meta.pomoWork||25)*60:(DB.meta.pomoBreak||5)*60; render(); return;}
-  if(action==='pomoSwitch'){clearInterval(pomo.interval); pomo.running=false; pomo.mode=pomo.mode==='Work'?'Break':'Work'; pomo.seconds=pomo.mode==='Work'?(DB.meta.pomoWork||25)*60:(DB.meta.pomoBreak||5)*60; render(); return;}
+  if(action==='floatMinToggle'){
+    DB.meta.floatingMinimized=!DB.meta.floatingMinimized; scheduleSave(); renderFloatingTimer(); return;
+  }
+  if(action==='floatClose'){
+    DB.meta.showFloatingTimer=false; scheduleSave(); renderFloatingTimer();
+    if(currentTab==='settings')render();
+    return;
+  }
+  if(action==='setPomoPreset'){
+    DB.meta.pomoWork=Number(d.work); DB.meta.pomoBreak=Number(d.break);
+    if(!pomo.running){ pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); }
+    scheduleSave(); render(); updateFloatingTimerUI(); return;
+  }
+  if(action==='focusCustomPomo'){
+    const el=document.getElementById('pomoWorkInput'); if(el)el.focus();
+    return;
+  }
   if(action==='exportData'){
     const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
@@ -1154,19 +1724,40 @@ function handleAction(action,btn){
     const dte=todayStr(); DB.tasks[dte]=(DB.tasks[dte]||[]).filter(x=>x.id!==d.id);
     scheduleSave(); render(); return;
   }
-  if(action==='studyTimerToggle'){
-    studyTimer.running=!studyTimer.running;
-    const btn=document.getElementById('floatToggleBtn'); if(btn)btn.textContent=studyTimer.running?'Pause':'Start';
-    return;
-  }
-  if(action==='studyTimerReset'){
-    studyTimer.running=false; studyTimer.seconds=0;
-    const btn=document.getElementById('floatToggleBtn'); if(btn)btn.textContent='Start';
-    tickFloatingTimer();
-    return;
-  }
 }
-function updatePomoDisplay(){const el=document.getElementById('pomoDisplay'); if(el)el.textContent=fmtTime(pomo.seconds);}
+
+/* ================= SUBJECT DRAG-AND-DROP REORDERING ================= */
+let dragSrcKey=null;
+document.addEventListener('dragstart',e=>{
+  const card=e.target.closest('[data-subj-drag]');
+  if(!card)return;
+  dragSrcKey=card.dataset.subjDrag;
+  e.dataTransfer.effectAllowed='move';
+  try{e.dataTransfer.setData('text/plain',dragSrcKey);}catch(err){}
+});
+document.addEventListener('dragover',e=>{
+  const card=e.target.closest('[data-subj-drag]');
+  if(!card)return;
+  e.preventDefault();
+});
+document.addEventListener('drop',e=>{
+  const card=e.target.closest('[data-subj-drag]');
+  if(!card||!dragSrcKey)return;
+  e.preventDefault();
+  const targetKey=card.dataset.subjDrag;
+  if(targetKey===dragSrcKey){dragSrcKey=null;return;}
+  const order=DB.subjectOrder;
+  const from=order.indexOf(dragSrcKey), to=order.indexOf(targetKey);
+  if(from===-1||to===-1)return;
+  order.splice(from,1);
+  order.splice(to,0,dragSrcKey);
+  dragSrcKey=null;
+  scheduleSave(); render();
+});
+/* touch-based reordering for mobile: long-press + drag isn't trivial without a
+   library, so on touch devices we offer simple "move up / move down" affordance
+   via the same drag handlers where supported; most modern mobile browsers
+   support HTML5 DnD polyfilled by touch, so the above handlers degrade gracefully. */
 
 /* ================= SEARCH ================= */
 function doSearch(q){
@@ -1174,7 +1765,7 @@ function doSearch(q){
   q=q.trim().toLowerCase();
   if(!q){box.style.display='none';box.innerHTML='';return;}
   const results=[];
-  allTopics().forEach(t=>{if(t.name.toLowerCase().includes(q))results.push(`<b>Topic</b> — ${esc(t.name)} (${SYLLABUS[t.subject].label})`);});
+  allTopics().forEach(t=>{if(t.name.toLowerCase().includes(q))results.push(`<b>Topic</b> — ${esc(t.name)} (${esc(subjLabel(t.subject))})`);});
   DB.notes.formulas.forEach(f=>{if(f.text.toLowerCase().includes(q))results.push(`<b>Formula</b> — ${esc(f.text)}`);});
   DB.notes.vocab.forEach(v=>{if(v.word.toLowerCase().includes(q)||v.meaning.toLowerCase().includes(q))results.push(`<b>Vocab</b> — ${esc(v.word)}: ${esc(v.meaning)}`);});
   DB.goals.forEach(gl=>{if(gl.text.toLowerCase().includes(q))results.push(`<b>Goal</b> — ${esc(gl.text)}`);});
@@ -1196,8 +1787,8 @@ function afterRenderHooks(){
   if(currentTab==='study'&&currentSubtab.study==='analytics'){
     destroyChart('subjHoursChart'); destroyChart('weekHoursChart');
     const ctx1=document.getElementById('subjHoursChart');
-    const subjHours=Object.keys(SYLLABUS).map(k=>subjectStats(k).hrs);
-    if(ctx1)charts.subjHoursChart=new Chart(ctx1,{type:'doughnut',data:{labels:Object.keys(SYLLABUS).map(k=>SYLLABUS[k].label),datasets:[{data:subjHours,backgroundColor:['#b3164f','#e91e63','#f06292','#f8bbd0','#9c1049','#5c0e33']}]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}});
+    const subjHours=subjectKeys().map(k=>subjectStats(k).hrs);
+    if(ctx1)charts.subjHoursChart=new Chart(ctx1,{type:'doughnut',data:{labels:subjectKeys().map(k=>subjLabel(k)),datasets:[{data:subjHours,backgroundColor:subjectKeys().map((k,i)=>subjColor(k)||DEFAULT_SUBJECT_COLORS[i%DEFAULT_SUBJECT_COLORS.length])}]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}});
     const ctx2=document.getElementById('weekHoursChart');
     const weeks=[...Array(8)].map((_,i)=>7*(7-i));
     const weekLabels=weeks.map((w,i)=>'W-'+(7-i));
@@ -1208,3 +1799,7 @@ function afterRenderHooks(){
 
 /* ================= INIT ================= */
 loadDB();
+
+</script>
+</body>
+</html>
