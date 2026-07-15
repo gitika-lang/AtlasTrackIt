@@ -60,7 +60,7 @@ function defaultState(){
   Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
-      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
+      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr()},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
   };
@@ -105,7 +105,6 @@ async function loadDB(){
   pomo.mode='Work';
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
-  sessionDate=pomoSavedDate||todayStr();
   checkDayRollover();
   render();
   if(pomo.running){
@@ -150,7 +149,9 @@ function importDataFromFile(input){
     pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; studyTimer.running=false;
     savePomoState();
     input.value='';
-    scheduleSave(); render();
+    scheduleSave();
+    checkDayRollover();
+    render();
   };
   reader.readAsText(file);
 }
@@ -1175,7 +1176,6 @@ function loadPomoState(){
     }
   }catch(e){/* ignore malformed state */}
 }
-let sessionDate=null; // tracks the "current" date for an open session, used to detect midnight rollover while the app stays open
 function finalizeDay(oldDate){
   if(!oldDate||oldDate===todayStr())return;
   if((DB.history||[]).some(h=>h.date===oldDate))return; // already finalized this date, avoid double-counting
@@ -1203,10 +1203,18 @@ function finalizeDay(oldDate){
 }
 function checkDayRollover(){
   const today=todayStr();
-  if(sessionDate&&sessionDate!==today){
-    finalizeDay(sessionDate);
-    sessionDate=today;
+  const last=DB.meta.lastActiveDate;
+  if(last&&last!==today){
+    // a new calendar day has begun since AtlasTrackIt was last active:
+    // archive yesterday's stats into Study History and reset today's live counters
+    finalizeDay(last);
+    DB.meta.lastActiveDate=today;
+    scheduleSave();
     render();
+  }else if(!last){
+    // legacy save with no lastActiveDate yet — start tracking from today
+    DB.meta.lastActiveDate=today;
+    scheduleSave();
   }
 }
 function playBeep(){
