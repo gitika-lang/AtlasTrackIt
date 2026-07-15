@@ -3,83 +3,67 @@
 A single-page exam/course prep dashboard: study tracker, goals, habits, mock
 tests, error log, revision calendar, exam readiness score, and a floating
 study timer — all in one clean, focused workspace. Built to work for any
-exam, certification, course, or learning journey, not just one syllabus.
+exam, certification, course, or learning journey.
 
 ## Navigation
 
-The app is organized into five sections:
+- **🏠 Dashboard** — daily home screen: Today's Goal (editable target),
+  Questions Solved Today (quick-edit), a live Study Session timer,
+  Today's Progress ring (animates in real time), Today's Tasks, Due
+  Revisions (checkbox-style completion + a button to add your own freeform
+  revision reminders), and a Quick Progress Summary.
+- **📚 Study** — Subjects (drag to reorder, add/edit/delete custom
+  subjects with your own name/icon/color), Study Log, Revision calendar,
+  Notes & Formulas, and Analytics.
+- **🎯 Goals** — Goals, Habits, Reviews, Achievements, plus an Exam
+  Readiness score and an Upcoming Deadlines view.
+- **🧪 Mocks** — Mock Tests, PYQ Tracker, Error Log.
+- **⚙ Settings** — theme, accent color, daily/question/mock targets,
+  Pomodoro presets, backup/export, import/restore, reset data.
 
-- **🏠 Dashboard** — your daily home screen. Today's target, today's
-  progress, today's task checklist, questions solved today, due revisions,
-  and a quick progress summary. Answers one question: "what should I do
-  today?"
-- **📚 Study** — Subjects & syllabus, Study Log, Revision calendar, Notes
-  & Formulas (quick notes, formula book, vocabulary), and Analytics
-  (study pace, subject/weekly charts, heatmap).
-- **🎯 Goals** — Goals, Habit tracker, Reviews (daily/weekly/monthly
-  reflections + smart recommendations), and Achievements, plus an exam
-  readiness score and an upcoming-deadlines view.
-- **🧪 Mocks** — Mock test log & trend charts, PYQ tracker, and the
-  mistake/error log.
-- **⚙ Settings** — theme, accent color, default daily hours, question and
-  mock-score targets, Pomodoro durations, backup/export, import/restore,
-  reset data, and the app version.
+On narrow screens the sidebar becomes a slide-out menu (☰ button).
 
-A floating study timer stays visible in the corner throughout the app.
+## This update (usability pass)
+
+- **Data persistence** reviewed end to end — every mutation (subjects,
+  topics, goals, targets, timer, question counts, revisions, notes, mocks,
+  errors, analytics inputs, theme, settings, custom subjects/topics) is
+  autosaved to LocalStorage on every change; nothing resets on refresh,
+  reopen, or tab switching.
+- **Questions Solved Today** now has an ✏️ Edit button — set today's total
+  directly from the Dashboard.
+- **Due Revisions** now has checkbox-style "Mark Revised" completion, plus
+  a **+ Add Revision** button to log freeform revision reminders (topic,
+  optional subject, due date, optional revision number) not tied to a
+  syllabus topic.
+- **Today's Progress** ring now animates smoothly as it updates in real
+  time, and always reflects today's target (including per-day overrides).
+- **Date pickers** (Target Date, Completion Date, and other date fields)
+  now accept any date from **1 January 2026** onward — past, today, or
+  future — instead of blocking anything before today.
 
 ## Project structure
 
 ```
 atlastrackit/
-├── index.html        # markup + tab shell
+├── index.html
 ├── css/
-│   └── styles.css     # all styling (light + dark theme via CSS variables)
+│   └── styles.css
 ├── js/
-│   └── app.js          # all application logic, state, and rendering
-├── assets/             # reserved for any icons/images you add later
+│   └── app.js
+├── assets/
 └── README.md
 ```
 
 ## Running it
 
-No build step or server required — just open `index.html` in a modern
-browser (Chrome, Edge, Firefox, Safari).
-
-Two external resources load over the network at runtime:
-- Google Fonts (Space Grotesk, Inter, JetBrains Mono)
-- Chart.js (for the mock-test and analytics charts), from cdnjs
-
-If you're offline, the app still works — those two just fall back to
-system fonts and the chart canvases won't render.
+Open `index.html` in a modern browser — no build step or server required.
+Google Fonts and Chart.js load from CDN at runtime; the app still works
+offline, just with system fonts and no charts.
 
 ## Data & storage
 
-All your data (sessions, subjects, goals, habits, mocks, etc.) is stored
-as a single JSON blob under the key `ssc_cgl_state_v1`. This key name is
-kept from the original project on purpose — renaming it would have
-disconnected the app from any data you already saved, so your existing
-progress keeps loading exactly as before.
-
-- Inside Claude.ai's artifact viewer, it uses Claude's built-in
-  `window.storage` API.
-- Opened standalone in a regular browser (as this export is meant to be
-  used), it automatically falls back to the browser's `localStorage` —
-  so your data persists per-browser, on the device you're using it from.
-
-`localStorage` is per-browser and per-origin: it won't sync across
-devices, and clearing your browser's site data will erase it. Use
-**Settings → Backup → Download JSON backup** periodically to keep a
-portable copy, and **Settings → Backup → Import / Restore** to load a
-backup back in (on the same browser or a different one).
-
-## Accent color
-
-Settings → Appearance lets you switch between four premium pink/maroon
-accent presets (Maroon, Rose, Berry, Crimson). Your choice is saved and
-applies everywhere the old blue accent used to appear.
-
-## Editing
-
-Everything is vanilla HTML/CSS/JS — no framework, no build tools, no
-`node_modules`. Open `js/app.js` and search for the section header
-comments (`/* ===== ... ===== */`) to find the relevant page's code.
+All data is stored as a single JSON blob under the LocalStorage key
+`ssc_cgl_state_v1` (kept from the original project name on purpose, so
+existing saved data keeps loading). Use **Settings → Backup** to export a
+JSON backup periodically, and to import one back in.

@@ -133,8 +133,9 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
 .heatcell{aspect-ratio:1;border-radius:3px;background:var(--bg-soft);}
 .ring-wrap{position:relative;width:120px;height:120px;margin:0 auto;}
 .ring-wrap svg{transform:rotate(-90deg);}
+.ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1);}
 .ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-.ring-label b{font-size:20px;font-family:var(--font-display);}
+.ring-label b{font-size:20px;font-family:var(--font-display);transition:color .2s;}
 .ring-label span{font-size:10px;color:var(--text-muted);}
 
 .quote-box{background:linear-gradient(135deg,var(--accent-900),var(--accent-700));color:#fff;border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;}
@@ -187,6 +188,7 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
 /* ================= SUBJECT DRAG CUES ================= */
 [data-subj-drag]{transition:opacity .15s,transform .15s;}
 [data-subj-drag][draggable="true"]:active{opacity:.7;}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
@@ -279,6 +281,10 @@ const QUOTES=[
 const DEFAULT_SUBJECT_COLORS=['#b3164f','#9c2861','#c2185b','#0f9d68','#c67c00','#7c3aed','#2563eb','#dc2626','#0891b2','#65a30d'];
 const DEFAULT_TOPIC_ICON='📘';
 const POMO_PRESETS=[[25,5],[30,5],[45,10],[50,10],[90,15]];
+// Earliest selectable date across all date pickers in the app. Fixed on purpose —
+// this is the app's tracking start date, not "today minus N years" — so it never
+// creeps forward. There is intentionally no upper bound: any future date is valid.
+const MIN_DATE='2026-01-01';
 
 function freshTopic(name){return {id:uid(),name,status:'Not Started',targetDate:'',completionDate:'',timeSpent:0,confidence:3,difficulty:'Medium',revisions:0,lastRevisionDate:'',notes:'',mistakes:''};}
 function defaultState(){
@@ -288,7 +294,7 @@ function defaultState(){
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[]
   };
 }
 let DB=defaultState();
@@ -305,6 +311,7 @@ async function loadDB(){
       DB.meta=Object.assign(defaultState().meta,parsed.meta||{});
       DB.tasks=parsed.tasks||{};
       DB.dailyTargets=parsed.dailyTargets||{};
+      DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
@@ -349,6 +356,7 @@ function importDataFromFile(input){
     DB.meta=Object.assign(defaultState().meta,parsed.meta||{});
     DB.tasks=parsed.tasks||{};
     DB.dailyTargets=parsed.dailyTargets||{};
+    DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
@@ -446,6 +454,7 @@ function revisionQueue(){
 }
 /* ---- question counter ---- */
 function questionsOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.qSolved||0),0);}
+function questionsOnExcludingQuickEdit(dateStr){return DB.sessions.filter(s=>s.date===dateStr&&!s.quickEdit).reduce((a,b)=>a+Number(b.qSolved||0),0);}
 function questionsSince(daysBack){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-daysBack);
   return DB.sessions.filter(s=>new Date(s.date)>=cutoff).reduce((a,b)=>a+Number(b.qSolved||0),0);
@@ -586,6 +595,26 @@ function renderMocksPage(){
 }
 
 /* ================= DASHBOARD (daily home screen) ================= */
+function renderDueRevisionItems(dueToday){
+  const today=todayStr();
+  const customDue=(DB.customRevisions||[]).filter(c=>c.due<=today).sort((a,b)=>a.due.localeCompare(b.due));
+  const total=dueToday.length+customDue.length;
+  if(total===0)return '<div class="emptystate">Nothing due — great pacing.</div>';
+  const topicRows=dueToday.slice(0,10).map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+      <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
+      <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum}</span></span>
+    </label>
+  </div>`).join('');
+  const customRows=customDue.slice(0,10).map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+      <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
+      <span>${esc(c.text)} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
+    </label>
+    <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
+  </div>`).join('');
+  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}</div>`;
+}
 function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
@@ -607,7 +636,13 @@ function renderDashboard(){
       <div class="sub">${isOverride?'Custom target for today':'Using default daily target'}</div>
     </div>
     <div class="card stat"><div class="label">365-Day Countdown</div><div class="value">${daysRemaining()}d left</div><div class="sub">Day ${daysElapsed()} of 365</div></div>
-    <div class="card stat"><div class="label">Questions Solved Today</div><div class="value">${questionsOn(today)}</div></div>
+    <div class="card stat">
+      <div class="flexbetween">
+        <div class="label">Questions Solved Today</div>
+        <button class="icon-only" data-action="editQuestionsToday" title="Edit today's question count">✏</button>
+      </div>
+      <div class="value" id="questionsTodayValue">${questionsOn(today)} <span style="font-size:13px;font-weight:600;color:var(--text-faint);">Questions</span></div>
+    </div>
   </div>
 
   <div class="card" id="studySessionCard" style="margin-top:14px;">
@@ -655,12 +690,11 @@ function renderDashboard(){
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     <div class="card">
-      <div class="label" style="margin-bottom:8px;">Due Revisions</div>
-      ${dueToday.length===0?'<div class="emptystate">Nothing due — great pacing.</div>':
-      `<div style="max-height:190px;overflow-y:auto;">${dueToday.slice(0,8).map(r=>`<div class="flexbetween" style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
-        <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum}</span></span>
-        <button class="btn ghost sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button>
-      </div>`).join('')}</div>`}
+      <div class="flexbetween" style="margin-bottom:8px;">
+        <div class="label">Due Revisions</div>
+        <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add Revision</button>
+      </div>
+      ${renderDueRevisionItems(dueToday)}
     </div>
     <div class="card">
       <div class="label" style="margin-bottom:10px;">Quick Progress Summary</div>
@@ -680,7 +714,7 @@ function ringSVG(pct){
   const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
   return `<svg width="120" height="120" viewBox="0 0 120 120">
     <circle cx="60" cy="60" r="${r}" stroke="var(--bg-soft)" stroke-width="10" fill="none"/>
-    <circle cx="60" cy="60" r="${r}" stroke="var(--accent-600)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
+    <circle class="ring-progress" cx="60" cy="60" r="${r}" stroke="var(--accent-600)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
   </svg>`;
 }
 function renderBadges(){
@@ -745,7 +779,7 @@ function renderSubjects(){
 function renderSubjectDetail(k){
   if(!DB.subjects[k]){openSubject=null;return renderSubjects();}
   const st=subjectStats(k); const topics=DB.subjects[k].topics;
-  const minDate=todayStr();
+  const minDate=MIN_DATE;
   return `
   <button class="btn ghost sm" data-action="closeSubject" style="margin-bottom:12px;">← All subjects</button>
   <div class="flexbetween">
@@ -793,9 +827,10 @@ function renderSubjectDetail(k){
     <td><input type="number" step="0.5" min="0" value="${t.timeSpent}" data-field="timeSpent" data-topic="${t.id}" data-key="${k}" style="width:60px;"></td>
     <td><select data-field="confidence" data-topic="${t.id}" data-key="${k}">${[1,2,3,4,5].map(n=>`<option ${t.confidence==n?'selected':''}>${n}</option>`).join('')}</select></td>
     <td><select data-field="difficulty" data-topic="${t.id}" data-key="${k}">${['Easy','Medium','Hard'].map(o=>`<option ${t.difficulty===o?'selected':''}>${o}</option>`).join('')}</select></td>
-    <td>
+    <td style="white-space:nowrap;">
       <span class="mono">${t.revisions}</span>
       <button class="icon-only" data-action="addRevision" data-topic="${t.id}" data-key="${k}" title="Log a revision">＋</button>
+      <button class="icon-only" data-action="openEditRevisions" data-topic="${t.id}" data-key="${k}" title="Set or edit revision count">✏</button>
     </td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="notes" title="Edit notes">📝${t.notes?'<span class=\"notes-preview\">'+esc(t.notes.slice(0,14))+'</span>':''}</button></td>
     <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="mistakes" title="Edit mistakes">⚠${t.mistakes?'<span class=\"notes-preview\">'+esc(t.mistakes.slice(0,14))+'</span>':''}</button></td>
@@ -818,7 +853,7 @@ function renderLog(){
   <div class="card">
     <div class="label" style="margin-bottom:10px;">Quick Session Entry <span class="hint">— under 2 minutes</span></div>
     <div class="formgrid">
-      <label>Date <input type="date" id="f_date" value="${f.date}"></label>
+      <label>Date <input type="date" id="f_date" value="${f.date}" min="${MIN_DATE}"></label>
       <label>Start <input type="time" id="f_start" value="${f.start}"></label>
       <label>End <input type="time" id="f_end" value="${f.end}"></label>
       <label>Total Hours <input type="number" step="0.25" min="0" id="f_hours" value="${f.hours}" placeholder="auto or manual"></label>
@@ -892,7 +927,7 @@ function renderGoals(){
     <div class="formgrid">
       <label>Type <select id="g_type">${types.map(t=>`<option ${f.type===t?'selected':''}>${t}</option>`).join('')}</select></label>
       <label>Goal <input type="text" id="g_text" value="${esc(f.text)}" placeholder="e.g. Finish Algebra by July 30"></label>
-      <label>Deadline <input type="date" id="g_deadline" value="${f.deadline}"></label>
+      <label>Deadline <input type="date" id="g_deadline" value="${f.deadline}" min="${MIN_DATE}"></label>
       <label>Priority <select id="g_priority">${['High','Medium','Low'].map(p=>`<option ${f.priority===p?'selected':''}>${p}</option>`).join('')}</select></label>
     </div>
     <button class="btn" data-action="saveGoal">Add Target</button>
@@ -983,7 +1018,7 @@ function renderMocks(){
   <div class="card">
     <div class="label" style="margin-bottom:10px;">Add a New Entry</div>
     <div class="formgrid">
-      <label>Date <input type="date" id="m_date" value="${f.date}"></label>
+      <label>Date <input type="date" id="m_date" value="${f.date}" min="${MIN_DATE}"></label>
       <label>Score <input type="number" id="m_score" value="${f.score}"></label>
       <label>Attempted <input type="number" id="m_attempted" value="${f.attempted}"></label>
       <label>Correct <input type="number" id="m_correct" value="${f.correct}"></label>
@@ -1411,7 +1446,7 @@ function updateStudySessionUI(){
   if(ringWrap){
     const target=todayTarget();
     const pct=Math.min(100,target?todayStudyTime()/target*100:0);
-    const circle=ringWrap.querySelectorAll('circle')[1];
+    const circle=ringWrap.querySelector('.ring-progress');
     if(circle){
       const r=50,c=2*Math.PI*r;
       circle.setAttribute('stroke-dashoffset',c-(pct/100)*c);
@@ -1472,9 +1507,9 @@ function handleTopicField(t){
   const subj=DB.subjects[key]; if(!subj)return;
   const topic=subj.topics.find(x=>x.id===topicId); if(!topic)return;
   let val=t.value;
-  if((field==='targetDate'||field==='completionDate') && val && val<todayStr()){
-    alert('Past dates are not allowed for '+(field==='targetDate'?'Target Date':'Completion Date')+'. Resetting to today.');
-    val=todayStr(); t.value=val;
+  if((field==='targetDate'||field==='completionDate') && val && val<MIN_DATE){
+    alert('Dates before 1 January 2026 are not allowed for '+(field==='targetDate'?'Target Date':'Completion Date')+'. Resetting to 1 January 2026.');
+    val=MIN_DATE; t.value=val;
   }
   if(field==='timeSpent'||field==='confidence')val=Number(val);
   topic[field]=val;
@@ -1506,6 +1541,57 @@ function handleAction(action,btn){
     if(topic.revisions<5){topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; scheduleSave(); render();}
     return;
   }
+  if(action==='openEditRevisions'){
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    openModal(`<h3>Revisions — ${esc(topic.name)}</h3>
+    <p class="sub" style="margin:0 0 10px;">Set exactly how many times you've revised this topic (0–5).</p>
+    <input type="number" min="0" max="5" id="revCountInput" value="${topic.revisions}" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveEditRevisions" data-key="${d.key}" data-topic="${d.topic}">Save</button></div>`);
+    return;
+  }
+  if(action==='saveEditRevisions'){
+    const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
+    let val=Number(document.getElementById('revCountInput').value);
+    if(isNaN(val))val=0;
+    val=Math.max(0,Math.min(5,Math.round(val)));
+    const increased=val>topic.revisions;
+    topic.revisions=val;
+    if(val===0){ topic.lastRevisionDate=''; if(topic.status==='Revised')topic.status='Completed'; }
+    else{ if(increased)topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; }
+    scheduleSave(); closeModal(); render(); return;
+  }
+  /* ---- Custom (freeform) revision reminders ---- */
+  if(action==='openAddCustomRevision'){
+    openModal(`<h3>Add a Revision</h3>
+    <p class="sub" style="margin:0 0 10px;">Add a quick revision reminder — for anything not already tracked as a syllabus topic.</p>
+    <div class="formgrid" style="grid-template-columns:1fr;">
+      <label>Topic / Item <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
+      <label>Subject (optional) <input type="text" id="cr_subject" placeholder="e.g. Quant"></label>
+      <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
+      <label>Revision # (optional) <input type="number" min="1" id="cr_revnum" placeholder="e.g. 1"></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Add Revision</button></div>`);
+    return;
+  }
+  if(action==='saveCustomRevision'){
+    const text=document.getElementById('cr_text').value.trim();
+    if(!text){alert('Please enter a topic or item to revise.'); return;}
+    const subject=document.getElementById('cr_subject').value.trim();
+    const due=document.getElementById('cr_due').value||todayStr();
+    const revNum=document.getElementById('cr_revnum').value?Number(document.getElementById('cr_revnum').value):null;
+    DB.customRevisions=DB.customRevisions||[];
+    DB.customRevisions.push({id:uid(),text,subject,due,revNum});
+    scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='completeCustomRevision'){
+    DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
+    scheduleSave(); render(); return;
+  }
+  if(action==='deleteCustomRevision'){
+    if(!confirm('Remove this revision reminder?'))return;
+    DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
+    scheduleSave(); render(); return;
+  }
   if(action==='openNote'){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
     const field=d.field;
@@ -1534,6 +1620,31 @@ function handleAction(action,btn){
     const v=document.getElementById('todayTargetInput').value;
     const today=todayStr();
     if(v===''||v===null)delete DB.dailyTargets[today]; else DB.dailyTargets[today]=Number(v);
+    scheduleSave(); closeModal(); render(); return;
+  }
+  /* ---- Today's questions solved quick editor ---- */
+  if(action==='editQuestionsToday'){
+    openModal(`<h3>Update Today's Question Count</h3>
+    <p class="sub" style="margin:0 0 10px;">Set the total number of questions you've solved today.</p>
+    <input type="number" min="0" id="questionsTodayInput" placeholder="e.g. 125" value="${questionsOn(todayStr())}" style="width:100%;">
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveQuestionsToday">Save</button></div>`);
+    return;
+  }
+  if(action==='saveQuestionsToday'){
+    const newTotal=Math.max(0,Number(document.getElementById('questionsTodayInput').value)||0);
+    const today=todayStr();
+    const base=questionsOnExcludingQuickEdit(today);
+    const diff=newTotal-base;
+    let qe=DB.sessions.find(s=>s.date===today&&s.quickEdit);
+    if(diff===0){
+      if(qe)DB.sessions=DB.sessions.filter(s=>s!==qe);
+    }else if(qe){
+      qe.qSolved=diff;
+    }else{
+      DB.sessions.push({id:uid(),date:today,start:'',end:'',hours:0,subject:subjectKeys()[0]||'',topic:'Quick Update',subtopic:'',
+        qSolved:diff,qCorrect:0,qWrong:0,source:'Dashboard quick edit',mood:'Okay',energy:'Medium',focus:3,
+        distractions:'',breakMin:0,revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true});
+    }
     scheduleSave(); closeModal(); render(); return;
   }
   /* ---- Subject management ---- */
@@ -1781,6 +1892,7 @@ function afterRenderHooks(){
 
 /* ================= INIT ================= */
 loadDB();
+
 
 </script>
 </body>

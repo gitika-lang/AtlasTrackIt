@@ -123,8 +123,9 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
 .heatcell{aspect-ratio:1;border-radius:3px;background:var(--bg-soft);}
 .ring-wrap{position:relative;width:120px;height:120px;margin:0 auto;}
 .ring-wrap svg{transform:rotate(-90deg);}
+.ring-progress{transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1);}
 .ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-.ring-label b{font-size:20px;font-family:var(--font-display);}
+.ring-label b{font-size:20px;font-family:var(--font-display);transition:color .2s;}
 .ring-label span{font-size:10px;color:var(--text-muted);}
 
 .quote-box{background:linear-gradient(135deg,var(--accent-900),var(--accent-700));color:#fff;border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;}
@@ -158,3 +159,22 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
 .danger-zone{border:1px solid var(--red-bg);background:var(--red-bg);border-radius:var(--radius);padding:16px;}
 .danger-zone .label{color:var(--red);}
 .version-tag{font-size:11px;color:var(--text-faint);text-align:center;padding:10px 0 0;}
+
+/* ================= MOBILE SIDEBAR ================= */
+#hamburgerBtn{display:none;}
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(10,18,32,.4);z-index:65;}
+#sidebarOverlay.show{display:block;}
+#sidebarCloseBtn{display:none;}
+@media(max-width:700px){
+  #hamburgerBtn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:16px;flex-shrink:0;}
+  #sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;height:100vh;z-index:70;transform:translateX(-100%);transition:transform .25s ease;flex-direction:column;overflow-x:hidden;align-items:stretch;}
+  #sidebar.open{transform:translateX(0);}
+  #sidebar nav{flex-direction:column;}
+  #sidebar .sidefoot{display:flex;}
+  #sidebarCloseBtn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);margin-left:auto;}
+  .topbar{gap:10px;}
+}
+
+/* ================= SUBJECT DRAG CUES ================= */
+[data-subj-drag]{transition:opacity .15s,transform .15s;}
+[data-subj-drag][draggable="true"]:active{opacity:.7;}
