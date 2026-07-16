@@ -233,7 +233,13 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
 /* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
-const todayStr=()=>new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Storage adapter: uses the Claude artifact window.storage API when running
@@ -294,7 +300,8 @@ function defaultState(){
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr()},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[],
+    profile:{name:''}
   };
 }
 let DB=defaultState();
@@ -314,6 +321,7 @@ async function loadDB(){
       DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
+      DB.profile=Object.assign({name:''},parsed.profile||{});
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
         if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};
@@ -339,6 +347,7 @@ async function loadDB(){
   loadPomoState();
   checkDayRollover();
   render();
+  maybeShowNamePrompt();
   if(pomo.running){
     studyTimer.running=(pomo.mode==='Work');
     pomo.interval=setInterval(pomoTick,1000);
@@ -364,6 +373,7 @@ function importDataFromFile(input){
     DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
+    DB.profile=Object.assign({name:''},parsed.profile||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
       const s=DB.subjects[k];
@@ -1279,6 +1289,17 @@ function renderSettingsPage(){
   const accent=DB.meta.accent||'maroon';
   const swatches=[['maroon','#b3164f'],['rose','#e91e63'],['berry','#9c2861'],['crimson','#b3212d']];
   return `
+  <div class="section-title"><h2>Profile</h2></div>
+  <div class="card">
+    <div class="settings-row">
+      <div><div class="srlabel">Your Name</div><div class="srhint">Used to personalize AtlasTrackIt for you — no account or login involved</div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="profileNameInput" placeholder="e.g. Gitika" maxlength="40" style="width:160px;" value="${esc(DB.profile.name||'')}">
+        <button class="btn ghost sm" data-action="saveProfileName">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="section-title"><h2>Appearance</h2></div>
   <div class="card">
     <div class="settings-row">
@@ -1428,7 +1449,7 @@ function finalizeDay(oldDate){
     DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
     DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
     DB.history.sort((a,b)=>b.date.localeCompare(a.date));
-    if(DB.history.length>120)DB.history=DB.history.slice(0,120);
+    if(DB.history.length>730)DB.history=DB.history.slice(0,730);
   }
   // Reset today's live counters whenever a new day has been detected — this must run
   // every time, independent of the archive-duplication guard above, otherwise a leftover
@@ -1539,6 +1560,15 @@ function updateStudySessionUI(){
 function openModal(html){document.getElementById('modalRoot').innerHTML=`<div class="modal-overlay" data-action="closeModalBg"><div class="modal" data-stop>${html}</div></div>`;}
 function closeModal(){document.getElementById('modalRoot').innerHTML='';}
 
+/* ================= PROFILE (name only — no accounts, no login) ================= */
+function maybeShowNamePrompt(){
+  if(DB.profile&&DB.profile.name)return; // already have a name — never ask again
+  openModal(`<h3>Welcome to AtlasTrackIt</h3>
+  <p class="sub" style="margin:0 0 10px;">What should I call you?</p>
+  <input type="text" id="firstNameInput" placeholder="e.g. Gitika" maxlength="40" style="width:100%;">
+  <div class="row"><button class="btn" data-action="saveFirstName">Continue</button></div>`);
+}
+
 /* ================= MOBILE SIDEBAR ================= */
 function openMobileSidebar(){document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show');}
 function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show');}
@@ -1612,6 +1642,15 @@ function handleAction(action,btn){
     savePomoState(); scheduleSave(); render(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
+  if(action==='saveFirstName'){
+    const val=(document.getElementById('firstNameInput').value||'').trim();
+    if(!val){alert('Please enter a name to continue.'); return;}
+    DB.profile.name=val.slice(0,40); scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='saveProfileName'){
+    const val=(document.getElementById('profileNameInput').value||'').trim();
+    DB.profile.name=val.slice(0,40); scheduleSave(); render(); return;
+  }
   if(action==='openHistory'){
     const rows=(DB.history||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     openModal(`<h3>📅 Study History</h3>
