@@ -313,8 +313,10 @@ const TABS=[
   {id:'study',label:'Study',ic:'📚'},
   {id:'goals',label:'Goals',ic:'🎯'},
   {id:'mocks',label:'Mocks',ic:'🧪'},
+  {id:'atlas',label:'Atlas AI',ic:'🤖'},
   {id:'settings',label:'Settings',ic:'⚙'}
 ];
+let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
   study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'}],
   goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
@@ -346,6 +348,7 @@ function render(){
   else if(currentTab==='study')view.innerHTML=renderStudyPage();
   else if(currentTab==='goals')view.innerHTML=renderGoalsPage();
   else if(currentTab==='mocks')view.innerHTML=renderMocksPage();
+  else if(currentTab==='atlas')view.innerHTML=renderAtlasPage();
   else if(currentTab==='settings')view.innerHTML=renderSettingsPage();
   afterRenderHooks();
   closeMobileSidebar();
@@ -378,6 +381,93 @@ function renderMocksPage(){
   else if(sub==='pyq')content=renderPyq();
   else if(sub==='errors')content=renderErrors();
   return subnavHtml('mocks')+content;
+}
+
+/* ================= ATLAS AI (UI only — no backend connected yet) ================= */
+const ATLAS_CHIPS=[
+  ['📅','What should I study today?'],
+  ['📊','Analyze my last 15 days'],
+  ['📚','Which subjects are my weakest?'],
+  ['🧠',"Build today's study plan"],
+  ['📈','Am I on track?'],
+  ['🔥','Motivate me'],
+  ['📝','Make a revision plan'],
+  ['🎯','Improve my mock scores']
+];
+const ATLAS_FUTURE=['Daily Study Planning','Progress Analysis','Weak Topic Detection','Revision Scheduling','Mock Test Analysis','Personalized Recommendations','Smart Productivity Insights','Study Pattern Analysis'];
+function atlasGreeting(){
+  const name=(DB.profile&&DB.profile.name)?DB.profile.name.trim():'';
+  if(!name)return 'Hello 👋';
+  const hour=new Date().getHours();
+  if(hour<12)return `Good Morning, ${esc(name)} 👋`;
+  if(hour<17)return `Good Afternoon, ${esc(name)} ☀️`;
+  return `Good Evening, ${esc(name)} 🌙`;
+}
+function atlasMessageHtml(m){
+  return `<div class="atlas-msg ${m.role}"><div class="atlas-bubble">${esc(m.text)}</div></div>`;
+}
+function renderAtlasChatBody(){
+  if(!atlasMessages.length){
+    return `<div class="atlas-empty">
+      <div class="atlas-empty-ic">✨</div>
+      <p>Atlas AI integration is coming next.</p>
+      <span>The interface is ready.<br>Soon Atlas will be able to analyze your personal study data and answer questions based on your actual progress.</span>
+    </div>`;
+  }
+  return atlasMessages.map(atlasMessageHtml).join('');
+}
+function renderAtlasPage(){
+  return `
+  <div class="atlas-page">
+    <div class="atlas-main">
+      <div class="atlas-greet">
+        <span class="atlas-badge">🤖 Atlas</span>
+        <h2 class="atlas-greeting disp">${atlasGreeting()}</h2>
+      </div>
+      <div class="card atlas-welcome">
+        <div class="atlas-welcome-icon">🤖</div>
+        <div>
+          <h3 style="margin:0 0 4px;font-size:15px;">Atlas AI</h3>
+          <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted);font-weight:600;">Your personal AI study coach.</p>
+          <p style="margin:0;font-size:12.5px;color:var(--text-faint);line-height:1.6;">Atlas can analyze your study habits, revision history, subjects, mock tests and progress to help you study smarter.</p>
+        </div>
+      </div>
+      <div class="atlas-chips">
+        ${ATLAS_CHIPS.map(([ic,text])=>`<button class="atlas-chip" data-action="atlasChip" data-text="${esc(text)}"><span>${ic}</span>${esc(text)}</button>`).join('')}
+      </div>
+      <div class="card atlas-chatcard">
+        <div id="atlasChatBody" class="atlas-chatbody">${renderAtlasChatBody()}</div>
+        <div class="atlas-inputrow">
+          <textarea id="atlasInput" placeholder="Ask Atlas anything about your prep..." rows="1"></textarea>
+          <button class="btn atlas-sendbtn" data-action="atlasSend" title="Send">➤</button>
+        </div>
+      </div>
+    </div>
+    <div class="atlas-side">
+      <div class="card">
+        <h3 style="margin:0 0 12px;font-size:14px;">Atlas Will Soon Help You With</h3>
+        <div class="atlas-future-list">
+          ${ATLAS_FUTURE.map(f=>`<div class="atlas-future-item">✓ ${esc(f)}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function autosizeAtlasInput(ta){
+  ta.style.height='auto';
+  ta.style.height=Math.min(ta.scrollHeight,160)+'px';
+}
+function atlasSendMessage(){
+  const ta=document.getElementById('atlasInput');
+  if(!ta)return;
+  const val=ta.value.trim();
+  if(!val)return;
+  atlasMessages.push({role:'user',text:val});
+  atlasMessages.push({role:'assistant',text:'AI backend is not connected yet.'});
+  ta.value='';
+  ta.style.height='auto';
+  const body=document.getElementById('atlasChatBody');
+  if(body){body.innerHTML=renderAtlasChatBody(); body.scrollTop=body.scrollHeight;}
 }
 
 /* ================= DASHBOARD (daily home screen) ================= */
@@ -1377,6 +1467,13 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='searchInput') doSearch(e.target.value);
+  if(e.target.id==='atlasInput') autosizeAtlasInput(e.target);
+});
+document.addEventListener('keydown',e=>{
+  if(e.target && e.target.id==='atlasInput' && e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    atlasSendMessage();
+  }
 });
 
 function handleTopicField(t){
@@ -1410,6 +1507,12 @@ function handleAction(action,btn){
     savePomoState(); scheduleSave(); render(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
+  if(action==='atlasChip'){
+    const ta=document.getElementById('atlasInput');
+    if(ta){ta.value=d.text; ta.focus(); autosizeAtlasInput(ta);}
+    return;
+  }
+  if(action==='atlasSend'){ atlasSendMessage(); return; }
   if(action==='saveFirstName'){
     const val=(document.getElementById('firstNameInput').value||'').trim();
     if(!val){alert('Please enter a name to continue.'); return;}
