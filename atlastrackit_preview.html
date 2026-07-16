@@ -1410,25 +1410,29 @@ function loadPomoState(){
 }
 function finalizeDay(oldDate){
   if(!oldDate||oldDate===todayStr())return;
-  if((DB.history||[]).some(h=>h.date===oldDate))return; // already finalized this date, avoid double-counting
-  // flush any live, not-yet-logged Pomodoro time for the old day into a real session
-  // so it counts toward Total Study Hours / Streak / History, then clear the live counter
-  if(studyTimer.seconds>0){
-    DB.sessions.push({id:uid(),date:oldDate,start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
-      subject:subjectKeys()[0]||'',topic:'Pomodoro Session',subtopic:'',qSolved:0,qCorrect:0,qWrong:0,
-      source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
-      revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
+  const alreadyArchived=(DB.history||[]).some(h=>h.date===oldDate);
+  if(!alreadyArchived){
+    // flush any live, not-yet-logged Pomodoro time for the old day into a real session
+    // so it counts toward Total Study Hours / Streak / History
+    if(studyTimer.seconds>0){
+      DB.sessions.push({id:uid(),date:oldDate,start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
+        subject:subjectKeys()[0]||'',topic:'Pomodoro Session',subtopic:'',qSolved:0,qCorrect:0,qWrong:0,
+        source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
+        revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
+    }
+    const studyHours=hoursOn(oldDate);
+    const target=effectiveTargetFor(oldDate);
+    const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
+    const questionsSolved=questionsOn(oldDate);
+    const revisionsCompleted=allTopics().filter(t=>t.lastRevisionDate===oldDate).length;
+    DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
+    DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
+    DB.history.sort((a,b)=>b.date.localeCompare(a.date));
+    if(DB.history.length>120)DB.history=DB.history.slice(0,120);
   }
-  const studyHours=hoursOn(oldDate);
-  const target=effectiveTargetFor(oldDate);
-  const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
-  const questionsSolved=questionsOn(oldDate);
-  const revisionsCompleted=allTopics().filter(t=>t.lastRevisionDate===oldDate).length;
-  DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
-  DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
-  DB.history.sort((a,b)=>b.date.localeCompare(a.date));
-  if(DB.history.length>120)DB.history=DB.history.slice(0,120);
-  // reset only today's live counters — subjects, topics, streak, goals, mocks, totals are untouched
+  // Reset today's live counters whenever a new day has been detected — this must run
+  // every time, independent of the archive-duplication guard above, otherwise a leftover
+  // live Pomodoro counter from oldDate can survive and get added into today's progress.
   studyTimer.seconds=0; studyTimer.running=false;
   clearInterval(pomo.interval); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
   savePomoState(); scheduleSave();
