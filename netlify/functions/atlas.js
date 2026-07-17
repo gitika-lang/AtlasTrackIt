@@ -125,7 +125,12 @@ exports.handler = async (event) => {
         contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024,
+          // Structured coaching replies (greeting + answer + reasoning + next
+          // steps, and especially full study plans) routinely run well past
+          // 1024 tokens. That cap was silently truncating Gemini's own output
+          // (finishReason: MAX_TOKENS) before it ever reached extractReply().
+          // Raised to give real headroom for a detailed plan/response.
+          maxOutputTokens: 4096,
         },
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -143,6 +148,10 @@ exports.handler = async (event) => {
     }
 
     const data = await geminiRes.json();
+    // Diagnostic logging: candidate count, finishReason, and part count let us
+    // confirm in Netlify function logs whether a reply came back complete
+    // (finishReason "STOP") or was cut short (e.g. "MAX_TOKENS", "SAFETY").
+    logGeminiResponseShape(data);
     const reply = extractReply(data);
     if (!reply) {
       console.error('Atlas function: no usable reply in Gemini response', JSON.stringify(data).slice(0, 500));
@@ -177,6 +186,30 @@ function buildGeminiContents(message, context, history) {
 
   contents.push({ role: 'user', parts: [{ text: currentTurnText }] });
   return contents;
+}
+
+// extractReply already joined every part of the first candidate (it was
+// never reading only parts[0]) — the missing piece was surfacing *why* a
+// reply looked short, which this logs before extraction runs.
+function logGeminiResponseShape(data) {
+  try {
+    const candidate = data && data.candidates && data.candidates[0];
+    const finishReason = candidate && candidate.finishReason;
+    const partCount = candidate && candidate.content && candidate.content.parts ? candidate.content.parts.length : 0;
+    console.log('Atlas function: Gemini response shape', {
+      candidateCount: data && data.candidates ? data.candidates.length : 0,
+      finishReason,
+      partCount,
+      promptFeedback: data && data.promptFeedback ? data.promptFeedback : undefined,
+    });
+    if (finishReason === 'MAX_TOKENS') {
+      console.warn('Atlas function: reply was truncated by maxOutputTokens — consider raising it further for this kind of request.');
+    } else if (finishReason && finishReason !== 'STOP') {
+      console.warn('Atlas function: reply ended for a non-standard reason:', finishReason);
+    }
+  } catch (e) {
+    console.error('Atlas function: failed to log Gemini response shape', e);
+  }
 }
 
 function extractReply(data) {
