@@ -383,7 +383,7 @@ function renderMocksPage(){
   return subnavHtml('mocks')+content;
 }
 
-/* ================= ATLAS AI (UI only — no backend connected yet) ================= */
+/* ================= ATLAS AI ================= */
 const ATLAS_CHIPS=[
   ['📅','What should I study today?'],
   ['📊','Analyze my last 15 days'],
@@ -395,6 +395,7 @@ const ATLAS_CHIPS=[
   ['🎯','Improve my mock scores']
 ];
 const ATLAS_FUTURE=['Daily Study Planning','Progress Analysis','Weak Topic Detection','Revision Scheduling','Mock Test Analysis','Personalized Recommendations','Smart Productivity Insights','Study Pattern Analysis'];
+let atlasWaiting=false; // true while a request to /api/atlas is in flight
 function atlasGreeting(){
   const name=(DB.profile&&DB.profile.name)?DB.profile.name.trim():'';
   if(!name)return 'Hello 👋';
@@ -403,15 +404,144 @@ function atlasGreeting(){
   if(hour<17)return `Good Afternoon, ${esc(name)} ☀️`;
   return `Good Evening, ${esc(name)} 🌙`;
 }
+
+/* ---- ATLAS AI — data context builder ----
+   Figures out what the message is asking about and hands Gemini only that
+   slice of the student's data, instead of the whole database every turn.
+   Keeps token usage, cost and latency down and keeps answers grounded. */
+function atlasSnapshot(){
+  const r=examReadiness();
+  return {
+    studentName:(DB.profile&&DB.profile.name)||null,
+    streakDays:currentStreak(),
+    todayStudyHours:Number(todayStudyTime().toFixed(2)),
+    todayTargetHours:todayTarget(),
+    daysElapsed:daysElapsed(),
+    daysRemaining:daysRemaining(),
+    examReadiness:{score:Math.round(r.score),label:r.label}
+  };
+}
+function atlasSubjectDetail(key){
+  const st=subjectStats(key);
+  const topics=DB.subjects[key].topics;
+  return {
+    subject:subjLabel(key),
+    progressPct:Math.round(st.pct),
+    hoursSpent:Number(st.hrs.toFixed(1)),
+    totalTopics:st.total, completedTopics:st.completed, remainingTopics:st.remaining,
+    weakTopics:st.weak.slice(0,12), strongTopics:st.strong.slice(0,8),
+    pendingTopicNames:topics.filter(t=>t.status==='Not Started'||t.status==='In Progress').map(t=>t.name).slice(0,15)
+  };
+}
+function atlasAllSubjectsBrief(){
+  return subjectKeys().map(k=>{const st=subjectStats(k);return {subject:subjLabel(k),progressPct:Math.round(st.pct),weakTopicCount:st.weak.length};});
+}
+function atlasWeakTopics(limit=10){
+  return allTopics().filter(t=>t.confidence<=2&&t.status!=='Completed'&&t.status!=='Revised')
+    .sort((a,b)=>a.confidence-b.confidence).slice(0,limit)
+    .map(t=>({name:t.name,subject:subjLabel(t.subject),confidence:t.confidence,status:t.status}));
+}
+function atlasRevisionQueueBrief(limit=10){
+  const today=todayStr();
+  return revisionQueue().filter(r=>r.due<=today).slice(0,limit).map(r=>({name:r.name,subject:r.subject,due:r.due,revNum:r.revNum}));
+}
+function atlasRecentSessions(n=5,subjectKey){
+  let sess=DB.sessions.slice();
+  if(subjectKey)sess=sess.filter(s=>s.subject===subjectKey);
+  return sess.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,n)
+    .map(s=>({date:s.date,subject:subjLabel(s.subject),hours:Number(Number(s.hours||0).toFixed(2)),questions:s.qSolved||0,notes:(s.notes||'').slice(0,140)}));
+}
+function atlasMockBrief(n=5){
+  const sorted=DB.mocks.slice().sort((a,b)=>b.number-a.number);
+  return {count:DB.mocks.length, average:Math.round(mockAvg()), highest:mockHigh(),
+    recent:sorted.slice(0,n).map(m=>({number:m.number,score:m.score,weak:m.weak,strong:m.strong}))};
+}
+function atlasHistorySummary(){
+  const hist=DB.history||[];
+  if(!hist.length)return null;
+  const avgGoalPct=Math.round(hist.reduce((a,h)=>a+Number(h.goalPct||0),0)/hist.length);
+  const avgStudyHours=Number((hist.reduce((a,h)=>a+Number(h.studyHours||0),0)/hist.length).toFixed(1));
+  const missedTargetDays=hist.filter(h=>Number(h.goalPct||0)<100).length;
+  const subjPct=subjectKeys().map(k=>({subject:subjLabel(k),pct:Math.round(subjectStats(k).pct)})).sort((a,b)=>b.pct-a.pct);
+  return {daysTracked:hist.length, avgDailyGoalCompletionPct:avgGoalPct, avgDailyStudyHours:avgStudyHours,
+    missedTargetDays, strongestSubject:subjPct[0]?subjPct[0].subject:null,
+    weakestSubject:subjPct.length?subjPct[subjPct.length-1].subject:null};
+}
+function atlasWeeklyTrend(){
+  const weeks=[];
+  for(let i=0;i<4;i++){const to=i*7, from=to+7; weeks.push(Number((hoursSince(from)-hoursSince(to)).toFixed(1)));}
+  return weeks.reverse(); // oldest week first, most recent last
+}
+function atlasMatchSubjectKey(q){
+  return subjectKeys().find(k=>{
+    const label=subjLabel(k).toLowerCase();
+    return q.includes(label)||label.split(/[\s&/]+/).some(w=>w.length>3&&q.includes(w));
+  });
+}
+function buildAtlasContext(message){
+  const q=(message||'').toLowerCase();
+  const ctx={snapshot:atlasSnapshot()};
+  const matchedSubject=atlasMatchSubjectKey(q);
+  if(matchedSubject){
+    ctx.subjectFocus=atlasSubjectDetail(matchedSubject);
+    ctx.recentSessions=atlasRecentSessions(5,matchedSubject);
+    return ctx;
+  }
+  const wantsWeek=/\bweek|next 7|schedule|plan\b/.test(q);
+  const wantsMonth=/\bmonth|trend|analytics|performance|improv|overall progress\b/.test(q);
+  const wantsMock=/\bmock|test score|exam score\b/.test(q);
+  const wantsWeak=/\bweak|struggl|difficult|bad at\b/.test(q);
+  const wantsRevision=/\brevis/.test(q);
+  const wantsMotivate=/\bmotivat|discourag|tired|lazy|procrastinat\b/.test(q);
+  const wantsToday=/\btoday|now|right now|this morning|tonight\b/.test(q)||(!wantsWeek&&!wantsMonth&&!wantsMock&&!wantsRevision&&!wantsMotivate&&!wantsWeak);
+  if(wantsToday){
+    ctx.subjectsBrief=atlasAllSubjectsBrief();
+    ctx.weakTopics=atlasWeakTopics(8);
+    ctx.revisionDueToday=atlasRevisionQueueBrief(8);
+    ctx.recentSessions=atlasRecentSessions(3);
+  }
+  if(wantsWeek){
+    ctx.weeklyHoursTrend=atlasWeeklyTrend();
+    ctx.subjectsBrief=atlasAllSubjectsBrief();
+    ctx.weakTopics=atlasWeakTopics(10);
+    ctx.revisionQueue=atlasRevisionQueueBrief(10);
+  }
+  if(wantsMonth){
+    ctx.historySummary=atlasHistorySummary();
+    ctx.weeklyHoursTrend=atlasWeeklyTrend();
+    ctx.mocks=atlasMockBrief(5);
+    ctx.subjectsBrief=atlasAllSubjectsBrief();
+  }
+  if(wantsMock)ctx.mocks=atlasMockBrief(8);
+  if(wantsWeak){ctx.weakTopics=atlasWeakTopics(12); ctx.subjectsBrief=atlasAllSubjectsBrief();}
+  if(wantsRevision){ctx.revisionQueue=atlasRevisionQueueBrief(15); ctx.weakTopics=atlasWeakTopics(8);}
+  if(wantsMotivate){ctx.recentSessions=atlasRecentSessions(5); ctx.historySummary=atlasHistorySummary();}
+  return ctx;
+}
+
+/* ---- ATLAS AI — chat rendering ---- */
+function atlasRenderMarkdown(text){
+  try{
+    if(typeof marked!=='undefined'){
+      const raw=marked.parse(text,{breaks:true});
+      return (typeof DOMPurify!=='undefined')?DOMPurify.sanitize(raw):raw;
+    }
+  }catch(e){ /* fall through to plain escaped text */ }
+  return esc(text).replace(/\n/g,'<br>');
+}
 function atlasMessageHtml(m){
-  return `<div class="atlas-msg ${m.role}"><div class="atlas-bubble">${esc(m.text)}</div></div>`;
+  if(m.role==='pending'){
+    return `<div class="atlas-msg assistant"><div class="atlas-bubble atlas-typing"><span></span><span></span><span></span></div></div>`;
+  }
+  const html=m.role==='assistant'?atlasRenderMarkdown(m.text):esc(m.text);
+  return `<div class="atlas-msg ${m.role}"><div class="atlas-bubble${m.error?' atlas-error':''}">${html}</div></div>`;
 }
 function renderAtlasChatBody(){
   if(!atlasMessages.length){
     return `<div class="atlas-empty">
       <div class="atlas-empty-ic">✨</div>
-      <p>Atlas AI integration is coming next.</p>
-      <span>The interface is ready.<br>Soon Atlas will be able to analyze your personal study data and answer questions based on your actual progress.</span>
+      <p>Ask Atlas anything about your prep.</p>
+      <span>Atlas already knows your subjects, progress, revisions and mock scores — no need to explain your journey, just ask.</span>
     </div>`;
   }
   return atlasMessages.map(atlasMessageHtml).join('');
@@ -438,8 +568,8 @@ function renderAtlasPage(){
       <div class="card atlas-chatcard">
         <div id="atlasChatBody" class="atlas-chatbody">${renderAtlasChatBody()}</div>
         <div class="atlas-inputrow">
-          <textarea id="atlasInput" placeholder="Ask Atlas anything about your prep..." rows="1"></textarea>
-          <button class="btn atlas-sendbtn" data-action="atlasSend" title="Send">➤</button>
+          <textarea id="atlasInput" placeholder="Ask Atlas anything about your prep..." rows="1"${atlasWaiting?' disabled':''}></textarea>
+          <button class="btn atlas-sendbtn" data-action="atlasSend" title="Send"${atlasWaiting?' disabled':''}>➤</button>
         </div>
       </div>
     </div>
@@ -457,17 +587,51 @@ function autosizeAtlasInput(ta){
   ta.style.height='auto';
   ta.style.height=Math.min(ta.scrollHeight,160)+'px';
 }
-function atlasSendMessage(){
+function atlasSetSendDisabled(disabled){
+  const btn=document.querySelector('.atlas-sendbtn'); if(btn)btn.disabled=disabled;
+  const ta=document.getElementById('atlasInput'); if(ta)ta.disabled=disabled;
+}
+function atlasRefreshChatBody(scrollDown){
+  const body=document.getElementById('atlasChatBody');
+  if(!body)return;
+  body.innerHTML=renderAtlasChatBody();
+  if(scrollDown)body.scrollTop=body.scrollHeight;
+}
+async function atlasSendMessage(){
+  if(atlasWaiting)return;
   const ta=document.getElementById('atlasInput');
   if(!ta)return;
   const val=ta.value.trim();
   if(!val)return;
   atlasMessages.push({role:'user',text:val});
-  atlasMessages.push({role:'assistant',text:'AI backend is not connected yet.'});
-  ta.value='';
-  ta.style.height='auto';
-  const body=document.getElementById('atlasChatBody');
-  if(body){body.innerHTML=renderAtlasChatBody(); body.scrollTop=body.scrollHeight;}
+  ta.value=''; ta.style.height='auto';
+  atlasWaiting=true; atlasSetSendDisabled(true);
+  atlasMessages.push({role:'pending'});
+  atlasRefreshChatBody(true);
+  // Recent turns (excluding the pending placeholder) give Atlas short-term memory
+  // for this browser session, so follow-up questions stay in context.
+  const history=atlasMessages.filter(m=>m.role==='user'||m.role==='assistant').slice(0,-1).slice(-12);
+  try{
+    const context=buildAtlasContext(val);
+    const res=await fetch('/api/atlas',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:val,context,history})
+    });
+    let data=null;
+    try{data=await res.json();}catch(e){ /* non-JSON error body */ }
+    atlasMessages=atlasMessages.filter(m=>m.role!=='pending');
+    if(res.ok&&data&&data.reply){
+      atlasMessages.push({role:'assistant',text:data.reply});
+    }else{
+      atlasMessages.push({role:'assistant',text:(data&&data.error)||'Atlas is taking a short break right now. Please try again in a moment.',error:true});
+    }
+  }catch(e){
+    atlasMessages=atlasMessages.filter(m=>m.role!=='pending');
+    atlasMessages.push({role:'assistant',text:'Atlas is taking a short break right now. Please try again in a moment.',error:true});
+  }
+  atlasWaiting=false; atlasSetSendDisabled(false);
+  atlasRefreshChatBody(true);
 }
 
 /* ================= DASHBOARD (daily home screen) ================= */
@@ -1472,7 +1636,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('keydown',e=>{
   if(e.target && e.target.id==='atlasInput' && e.key==='Enter' && !e.shiftKey){
     e.preventDefault();
-    atlasSendMessage();
+    if(!atlasWaiting)atlasSendMessage();
   }
 });
 
@@ -1508,6 +1672,7 @@ function handleAction(action,btn){
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
   if(action==='atlasChip'){
+    if(atlasWaiting)return;
     const ta=document.getElementById('atlasInput');
     if(ta){ta.value=d.text; ta.focus(); autosizeAtlasInput(ta);}
     return;

@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Frontend calls /api/atlas; this maps it to the deployed function without
+# exposing the /.netlify/functions/... path (and gives us a stable URL if the
+# function is ever renamed).
+[[redirects]]
+  from = "/api/atlas"
+  to = "/.netlify/functions/atlas"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"

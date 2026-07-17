@@ -1,0 +1,9 @@
+{
+  "name": "atlastrackit",
+  "private": true,
+  "version": "2.0.0",
+  "description": "AtlasTrackIt — Prep Command Center, with the Atlas AI study coach (Gemini via a Netlify Function).",
+  "engines": {
+    "node": ">=18"
+  }
+}
