@@ -9,7 +9,7 @@
 // .env file that is never committed — see .env.example). It is read here with
 // process.env.GEMINI_API_KEY and is never sent to, or readable by, the browser.
 
-const GEMINI_MODEL = "gemini-3.5-flash";
+const GEMINI_MODEL = 'gemini-2.0-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Hard caps to keep requests small, fast and cheap — the frontend already

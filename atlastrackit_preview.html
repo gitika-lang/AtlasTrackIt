@@ -407,6 +407,7 @@ async function loadDB(){
   if(pomo.running){
     studyTimer.running=(pomo.mode==='Work');
     pomo.interval=setInterval(pomoTick,1000);
+    pomoScheduleEndTimeout();
   }
   clearInterval(dayRollcheckInterval);
   dayRollcheckInterval=setInterval(checkDayRollover,30000);
@@ -443,8 +444,8 @@ function importDataFromFile(input){
     DB.subjectOrder=[...savedOrder,...missing];
     if(DB.meta.dark)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
     document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
-    clearInterval(pomo.interval);
-    pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; studyTimer.running=false;
+    stopAlarm(); clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
+    pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; pomo.targetEndTs=null; studyTimer.running=false;
     savePomoState();
     input.value='';
     scheduleSave();
@@ -1651,11 +1652,11 @@ function renderSettingsPage(){
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoAuto" ${DB.meta.pomoAutoTransition?'checked':''}></label>
     </div>
     <div class="settings-row">
-      <div><div class="srlabel">Sound Notification</div><div class="srhint">Play a short beep when a session ends</div></div>
+      <div><div class="srlabel">Sound Notification</div><div class="srhint">Play a louder ~5-second alarm when a session ends (stops as soon as you return to the tab or touch the timer)</div></div>
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoSound" ${DB.meta.pomoSound?'checked':''}></label>
     </div>
     <div class="settings-row">
-      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active</div></div>
+      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active${typeof Notification!=='undefined'&&Notification.permission==='denied'?' — currently blocked; enable notifications for this site in your browser settings to receive them':''}</div></div>
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
     </div>
   </div>
@@ -1702,14 +1703,15 @@ function fmtHrsMin(hrs){const h=Math.floor(hrs);const m=Math.round((hrs-h)*60);r
    rendered. State is persisted to localStorage on every tick so it
    survives a page refresh or the tab being closed and reopened. */
 const POMO_LS_KEY='atlastrackit_pomo_state_v1';
-let pomo={seconds:25*60,running:false,mode:'Work',interval:null};
+let pomo={seconds:25*60,running:false,mode:'Work',interval:null,targetEndTs:null,endTimeoutHandle:null};
 let studyTimer={seconds:0,running:false}; // tracks total elapsed "Work" seconds today, feeds the dashboard ring
 
 function savePomoState(){
   try{
     localStorage.setItem(POMO_LS_KEY,JSON.stringify({
       mode:pomo.mode,seconds:pomo.seconds,running:pomo.running,
-      ts:Date.now(),studySeconds:studyTimer.seconds,studyDate:todayStr()
+      ts:Date.now(),targetEndTs:pomo.running?pomo.targetEndTs:null,
+      studySeconds:studyTimer.seconds,studyDate:todayStr()
     }));
   }catch(e){/* localStorage unavailable */}
 }
@@ -1724,15 +1726,21 @@ function loadPomoState(){
     pomo.running=!!s.running;
     studyTimer.seconds=Number(s.studySeconds)||0;
     pomoSavedDate=s.studyDate||todayStr();
-    if(pomo.running&&s.ts){
-      // catch up for time elapsed while the page was closed/refreshed
-      const elapsed=Math.max(0,Math.floor((Date.now()-s.ts)/1000));
-      if(pomo.mode==='Work')studyTimer.seconds+=elapsed;
-      pomo.seconds-=elapsed;
+    if(pomo.running){
+      // Reconstruct the exact wall-clock moment this phase should end (prefer the
+      // persisted value; fall back to deriving it from the old ts+seconds shape
+      // so state saved before this fix still loads correctly), then catch up
+      // using the same real-time sync used while the app stays open — this
+      // covers the page being closed/refreshed just like it covers a
+      // background tab, instead of a separate elapsed-seconds calculation.
+      pomo.targetEndTs=typeof s.targetEndTs==='number'?s.targetEndTs:(s.ts?s.ts+pomo.seconds*1000:Date.now()+pomo.seconds*1000);
+      studyTimer.running=(pomo.mode==='Work');
+      syncPomoFromClock();
       if(pomo.seconds<=0){
         // missed the session-end transition while away; settle into a fresh
         // session in the current mode rather than guessing how many cycles passed
         pomo.seconds=pomoDurationSeconds(pomo.mode);
+        pomo.targetEndTs=Date.now()+pomo.seconds*1000;
         pomo.running=false;
         studyTimer.running=false;
       }
@@ -1765,7 +1773,7 @@ function finalizeDay(oldDate){
   // every time, independent of the archive-duplication guard above, otherwise a leftover
   // live Pomodoro counter from oldDate can survive and get added into today's progress.
   studyTimer.seconds=0; studyTimer.running=false;
-  clearInterval(pomo.interval); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
+  stopAlarm(); clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); pomo.targetEndTs=null;
   savePomoState(); scheduleSave();
 }
 function checkDayRollover(){
@@ -1784,18 +1792,35 @@ function checkDayRollover(){
     scheduleSave();
   }
 }
-function playBeep(){
+let pomoAlarmCtx=null, pomoAlarmOscillators=[], pomoAlarmStopTimeout=null;
+function playAlarm(){
   if(!DB.meta.pomoSound)return;
+  stopAlarm(); // never let two alarms overlap
   try{
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const o=ctx.createOscillator(), g=ctx.createGain();
-    o.type='sine'; o.frequency.value=880;
-    g.gain.setValueAtTime(0.0001,ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.5);
-    o.connect(g); g.connect(ctx.destination);
-    o.start(); o.stop(ctx.currentTime+0.55);
+    pomoAlarmCtx=ctx;
+    const totalSeconds=5, beepLen=0.35, gap=0.22;
+    let t=ctx.currentTime;
+    const end=t+totalSeconds;
+    while(t<end){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square'; o.frequency.value=880; // brighter/louder-feeling than the old sine beep
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.9,t+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+beepLen);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t+beepLen+0.05);
+      pomoAlarmOscillators.push(o);
+      t+=beepLen+gap;
+    }
+    pomoAlarmStopTimeout=setTimeout(stopAlarm,(totalSeconds+0.3)*1000);
   }catch(e){/* audio not available */}
+}
+function stopAlarm(){
+  if(pomoAlarmStopTimeout){clearTimeout(pomoAlarmStopTimeout); pomoAlarmStopTimeout=null;}
+  pomoAlarmOscillators.forEach(o=>{try{o.stop();}catch(e){/* already stopped */}});
+  pomoAlarmOscillators=[];
+  if(pomoAlarmCtx){try{pomoAlarmCtx.close();}catch(e){/* already closed */} pomoAlarmCtx=null;}
 }
 function notifySessionEnd(nextMode){
   if(!DB.meta.pomoNotify)return;
@@ -1804,43 +1829,90 @@ function notifySessionEnd(nextMode){
   const fire=()=>new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
   if(Notification.permission==='granted')fire();
   else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
+  // Note: if Notification.permission is 'denied', the browser will never
+  // prompt again — the user must re-enable notifications for this site in
+  // their browser settings, there's no way for the page to force it.
 }
 function pomoDurationSeconds(mode){return (mode==='Work'?(DB.meta.pomoWork||25):(DB.meta.pomoBreak||5))*60;}
-function pomoTick(){
-  checkDayRollover();
-  pomo.seconds--;
-  if(pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds++;
-  if(pomo.seconds<=0){
-    playBeep();
-    const finishedMode=pomo.mode;
-    const nextMode=finishedMode==='Work'?'Break':'Work';
-    notifySessionEnd(nextMode);
-    if(DB.meta.pomoAutoTransition){
-      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
-      studyTimer.running=(nextMode==='Work');
-    }else{
-      pomo.running=false; clearInterval(pomo.interval);
-      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
-      studyTimer.running=false;
-    }
+
+// Recomputes pomo.seconds (and the study-time credit) from the real wall-clock
+// target end time instead of trusting a plain per-tick decrement. This is what
+// keeps the countdown accurate even when the regular 1s interval gets throttled
+// by the browser in a background/inactive tab and fires late or less often.
+function syncPomoFromClock(){
+  if(!pomo.running||!pomo.targetEndTs)return;
+  const remainingSec=Math.max(0,Math.round((pomo.targetEndTs-Date.now())/1000));
+  const elapsedSec=Math.max(0,pomo.seconds-remainingSec);
+  if(elapsedSec>0&&pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds+=elapsedSec;
+  pomo.seconds=remainingSec;
+}
+// Schedules a one-shot timer aimed precisely at the real end-of-phase moment.
+// A single setTimeout for the exact remaining duration is far more reliable in
+// a backgrounded tab than waiting for a repeating 1s setInterval to notice —
+// browsers still throttle it once a tab has been hidden for several minutes
+// (Chrome, for example, can delay background timers to roughly once a
+// minute), but it fires much closer to on-time than the old tick-counting
+// approach, and the alarm/notification will still go off without needing the
+// tab to be brought to the front first.
+function pomoScheduleEndTimeout(){
+  clearTimeout(pomo.endTimeoutHandle);
+  if(!pomo.running||!pomo.targetEndTs)return;
+  pomo.endTimeoutHandle=setTimeout(pomoPhaseEnd,Math.max(0,pomo.targetEndTs-Date.now()));
+}
+function pomoPhaseEnd(){
+  if(!pomo.running)return; // guard against a stale timeout firing after a pause/reset
+  syncPomoFromClock();
+  playAlarm();
+  const finishedMode=pomo.mode;
+  const nextMode=finishedMode==='Work'?'Break':'Work';
+  notifySessionEnd(nextMode);
+  if(DB.meta.pomoAutoTransition){
+    pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+    studyTimer.running=(nextMode==='Work');
+    pomo.targetEndTs=Date.now()+pomo.seconds*1000;
+    pomoScheduleEndTimeout();
+  }else{
+    pomo.running=false; clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
+    pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+    studyTimer.running=false;
   }
   updateStudySessionUI();
   savePomoState();
 }
+// Lightweight UI heartbeat — while the tab is visible this just re-syncs the
+// on-screen countdown from the clock every second (self-correcting any drift
+// instead of compounding it); pomoPhaseEnd is normally triggered by the
+// dedicated end-timeout above, but it's called here too as a fallback in case
+// that timeout was ever missed, so the display never gets stuck at 0:00.
+function pomoTick(){
+  checkDayRollover();
+  if(!pomo.running)return;
+  syncPomoFromClock();
+  if(pomo.seconds<=0){ pomoPhaseEnd(); return; }
+  updateStudySessionUI();
+  savePomoState();
+}
 function pomoStartPause(){
+  stopAlarm(); // interacting with the timer is one of the ways to silence the alarm
   pomo.running=!pomo.running;
   if(pomo.running){
     if(pomo.mode==='Work')studyTimer.running=true;
+    pomo.targetEndTs=Date.now()+pomo.seconds*1000;
     pomo.interval=setInterval(pomoTick,1000);
+    pomoScheduleEndTimeout();
   }else{
-    clearInterval(pomo.interval); studyTimer.running=false;
+    syncPomoFromClock(); // capture the exact remaining time at the moment of pausing
+    clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
+    studyTimer.running=false;
   }
   updateStudySessionUI();
   savePomoState();
 }
 function pomoReset(){
-  clearInterval(pomo.interval); pomo.running=false; studyTimer.running=false;
-  pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
+  stopAlarm();
+  clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
+  pomo.running=false; studyTimer.running=false;
+  pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); pomo.targetEndTs=null;
   updateStudySessionUI();
   savePomoState();
 }
@@ -1926,6 +1998,21 @@ document.addEventListener('keydown',e=>{
     e.preventDefault();
     if(!atlasWaiting)atlasSendMessage();
   }
+});
+// Returning to the tab is one of the ways to silence the alarm, and it also
+// snaps the on-screen countdown back to the true remaining time immediately
+// rather than waiting for the next (possibly still-throttled) tick — the
+// dedicated end-timeout in pomoScheduleEndTimeout already handles firing the
+// alarm/notification on time while hidden; this is just the "welcome back"
+// catch-up for the UI and a safety net in the rare case that timeout was
+// itself delayed past the point of returning.
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;
+  stopAlarm();
+  if(!pomo.running)return;
+  syncPomoFromClock();
+  if(pomo.seconds<=0){ pomoPhaseEnd(); }
+  else{ updateStudySessionUI(); savePomoState(); }
 });
 
 function handleTopicField(t){
