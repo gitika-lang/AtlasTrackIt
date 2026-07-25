@@ -68,7 +68,7 @@ function defaultState(){
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr()},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[],
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[],
     profile:{name:''}
   };
 }
@@ -88,6 +88,8 @@ async function loadDB(){
       DB.dailyTargets=parsed.dailyTargets||{};
       DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
+      DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
+      DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       DB.profile=Object.assign({name:''},parsed.profile||{});
       // backfill any new syllabus topics not present (safe merge)
@@ -114,6 +116,7 @@ async function loadDB(){
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
   checkDayRollover();
+  checkScheduledRevisionReminders();
   render();
   maybeShowNamePrompt();
   if(pomo.running){
@@ -122,7 +125,7 @@ async function loadDB(){
     pomoScheduleEndTimeout();
   }
   clearInterval(dayRollcheckInterval);
-  dayRollcheckInterval=setInterval(checkDayRollover,30000);
+  dayRollcheckInterval=setInterval(()=>{checkDayRollover();checkScheduledRevisionReminders();},30000);
 }
 let dayRollcheckInterval=null;
 
@@ -141,6 +144,8 @@ function importDataFromFile(input){
     DB.dailyTargets=parsed.dailyTargets||{};
     DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
+    DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
+    DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
     DB.profile=Object.assign({name:''},parsed.profile||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
@@ -319,7 +324,7 @@ const TABS=[
 ];
 let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
-  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'}],
+  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
   goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
 };
@@ -364,6 +369,7 @@ function renderStudyPage(){
   else if(sub==='revision')content=renderRevision();
   else if(sub==='notes')content=renderStudyNotes();
   else if(sub==='analytics')content=renderAnalytics();
+  else if(sub==='history')content=renderHistoryArchive();
   return subnavHtml('study')+content;
 }
 function renderGoalsPage(){
@@ -635,6 +641,79 @@ async function atlasSendMessage(){
   atlasRefreshChatBody(true);
 }
 
+/* ---- Scheduled Revisions: plan a future revision (Subject + Topic + date/time +
+   optional note), surfaced prominently on the Dashboard when due, with an optional
+   browser-notification reminder. Separate from the auto-generated spaced-repetition
+   queue and the quick freeform "+ Add Revision" reminder — this is planned in advance
+   and tracked through Scheduled → Completed/Skipped, and can be rescheduled. ---- */
+function scheduledRevisionDueTs(item){
+  const t=item.time?item.time:'00:00';
+  const ts=new Date(`${item.date}T${t}:00`).getTime();
+  return isNaN(ts)?null:ts;
+}
+function renderTodayScheduledRevisions(){
+  const today=todayStr();
+  const due=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled'&&s.date<=today)
+    .sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
+  if(!due.length)return '';
+  return `<div class="card" style="margin-top:14px;background:linear-gradient(160deg,var(--accent-50),var(--card));border-color:var(--accent-100);">
+    <div class="flexbetween" style="margin-bottom:8px;">
+      <div class="label">🔔 Today's Scheduled Revisions</div>
+      <span class="sub">${due.length} due</span>
+    </div>
+    ${due.map(s=>`<div class="flexbetween" style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px;gap:10px;">
+      <span>
+        ${esc(s.topicName)}${s.subjectLabel?` <span class="sub" style="color:var(--text-faint);">· ${esc(s.subjectLabel)}</span>`:''}${s.time?` <span class="sub" style="color:var(--text-faint);">· ${esc(s.time)}</span>`:''}${s.date<today?' <span class="tag high">Overdue</span>':''}
+        ${s.note?`<div class="sub" style="color:var(--text-faint);margin-top:2px;">${esc(s.note)}</div>`:''}
+      </span>
+      <span style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Done</button>
+        <button class="btn ghost sm" data-action="skipScheduledRevision" data-id="${s.id}">Skip</button>
+        <button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>
+      </span>
+    </div>`).join('')}
+  </div>`;
+}
+// Builds the <option> list for a subject's tracked topics, used by the Schedule
+// Revision modal's Topic dropdown (kept as a function so it can be regenerated
+// when the Subject select changes, without a full page render()).
+function scheduleTopicOptionsHtml(subjectKey){
+  if(!subjectKey||!DB.subjects[subjectKey])return '';
+  return DB.subjects[subjectKey].topics.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+}
+function scheduleRevisionSubjectFieldHtml(subjectKey){
+  if(subjectKey&&DB.subjects[subjectKey]){
+    return `<select id="sr2_topic">${scheduleTopicOptionsHtml(subjectKey)}</select>`;
+  }
+  return `<input type="text" id="sr2_topic_custom" placeholder="e.g. Percentage formulas, Chapter 5">`;
+}
+function notifyScheduledRevision(item){
+  if(!DB.meta.pomoNotify)return;
+  if(typeof Notification==='undefined')return;
+  if(!document.hidden)return; // consistent with the Pomodoro reminder: only interrupt when the tab isn't active
+  const body=`${item.topicName}${item.subjectLabel?' · '+item.subjectLabel:''} is due for revision.`;
+  const fire=()=>new Notification('AtlasTrackIt — Revision Reminder',{body});
+  if(Notification.permission==='granted')fire();
+  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
+}
+// Runs periodically (see dayRollcheckInterval) to fire a one-time reminder the
+// moment a scheduled revision becomes due — by date if no time was given, or by
+// the exact date+time otherwise. notifiedAt prevents repeat notifications.
+function checkScheduledRevisionReminders(){
+  const now=Date.now();
+  let changed=false;
+  (DB.scheduledRevisions||[]).forEach(item=>{
+    if(item.status!=='Scheduled'||item.notifiedAt)return;
+    const dueTs=scheduledRevisionDueTs(item);
+    if(dueTs!==null&&now>=dueTs){
+      notifyScheduledRevision(item);
+      item.notifiedAt=new Date().toISOString();
+      changed=true;
+    }
+  });
+  if(changed){scheduleSave(); if(currentTab==='dashboard')render();}
+}
+
 /* ================= DASHBOARD (daily home screen) ================= */
 function renderDueRevisionItems(dueToday){
   const today=todayStr();
@@ -748,6 +827,8 @@ function renderDashboard(){
     </div>
   </div>
 
+  ${renderTodayScheduledRevisions()}
+
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     ${renderStudyHistoryCard()}
   </div>
@@ -774,6 +855,49 @@ function renderStudyHistoryCard(){
       </div>`:`<div class="emptystate">No data recorded for yesterday yet.</div>`}
     </div>`;
 }
+/* ---- History / Archive: completed daily tasks + completed revisions, kept
+   (not deleted) and organized by date with their original completion time ---- */
+function fmtClock(iso){
+  if(!iso)return '';
+  const d=new Date(iso);
+  if(isNaN(d.getTime()))return '';
+  let h=d.getHours(); const m=d.getMinutes().toString().padStart(2,'0');
+  const ap=h>=12?'PM':'AM'; h=h%12; if(h===0)h=12;
+  return `${h}:${m} ${ap}`;
+}
+function buildActivityArchive(){
+  const byDate={};
+  Object.keys(DB.tasks||{}).forEach(date=>{
+    (DB.tasks[date]||[]).filter(t=>t.done).forEach(t=>{
+      (byDate[date]=byDate[date]||[]).push({type:'task',text:t.text,completedAt:t.completedAt||''});
+    });
+  });
+  (DB.revisionLog||[]).forEach(r=>{
+    const label=r.name+(r.subject?' · '+r.subject:'')+(r.revNum?' · Rev '+r.revNum:'')+(r.kind==='custom'?' · Custom':'');
+    (byDate[r.date]=byDate[r.date]||[]).push({type:'revision',text:label,completedAt:r.completedAt||''});
+  });
+  return byDate;
+}
+function renderHistoryArchive(){
+  const byDate=buildActivityArchive();
+  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+  const header=`<div class="section-title"><h2>History / Archive</h2><span class="hint">Completed tasks & revisions — kept, not deleted, organized by date</span></div>`;
+  if(!dates.length){
+    return header+`<div class="emptystate">Nothing completed yet — finished daily tasks and completed revisions will show up here, grouped by the day you completed them.</div>`;
+  }
+  const sections=dates.map(date=>{
+    const items=byDate[date].slice().sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
+    const rows=items.map(it=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+      <span>${it.type==='task'?'✅':'🔁'} ${esc(it.text)}</span>
+      <span class="sub" style="color:var(--text-faint);white-space:nowrap;">${it.completedAt?fmtClock(it.completedAt):''}</span>
+    </div>`).join('');
+    return `<div class="card" style="margin-bottom:12px;">
+      <div class="flexbetween" style="margin-bottom:6px;"><div class="label">${esc(date)}</div><span class="sub">${items.length} completed</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+  return header+sections;
+}
 function ringSVG(pct){
   const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
   return `<svg width="120" height="120" viewBox="0 0 120 120">
@@ -799,12 +923,43 @@ function renderBadges(){
 }
 
 /* ================= REVISION CALENDAR ================= */
+function renderScheduledRevisionsSection(){
+  const items=(DB.scheduledRevisions||[]).slice().sort((a,b)=>{
+    if(a.status!==b.status){ const order={Scheduled:0,Skipped:1,Completed:2}; return (order[a.status]||0)-(order[b.status]||0); }
+    return (a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00'));
+  });
+  const statusPill=s=>({Scheduled:'inprogress',Completed:'completed',Skipped:'notstarted'}[s]||'notstarted');
+  return `<div class="section-title"><h2>Scheduled Revisions</h2><span class="hint">Plan a revision in advance, on top of the auto-generated queue below</span></div>
+  <div class="card" style="margin-bottom:10px;">
+    <button class="btn sm" data-action="openScheduleRevision">📅 Schedule Revision</button>
+  </div>
+  <div class="card" style="overflow-x:auto;">
+  ${items.length===0?'<div class="emptystate">Nothing scheduled yet — plan your next revision ahead of time.</div>':
+  `<table><thead><tr><th>Topic</th><th>Subject</th><th>Date</th><th>Time</th><th>Note</th><th>Status</th><th></th></tr></thead><tbody>
+  ${items.map(s=>`<tr>
+    <td>${esc(s.topicName)}</td>
+    <td>${esc(s.subjectLabel||'—')}</td>
+    <td>${esc(s.date)}</td>
+    <td>${esc(s.time||'—')}</td>
+    <td class="notes-preview" title="${esc(s.note||'')}">${esc(s.note||'—')}</td>
+    <td><span class="pill ${statusPill(s.status)}">${s.status}</span></td>
+    <td style="white-space:nowrap;">
+      ${s.status==='Scheduled'?`<button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Done</button>
+      <button class="btn ghost sm" data-action="skipScheduledRevision" data-id="${s.id}">Skip</button>
+      <button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>`:''}
+      ${s.status==='Skipped'?`<button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>`:''}
+      <button class="icon-only" data-action="deleteScheduledRevision" data-id="${s.id}" title="Delete">🗑</button>
+    </td>
+  </tr>`).join('')}
+  </tbody></table>`}
+  </div>`;
+}
 function renderRevision(){
   const q=revisionQueue();
   const today=todayStr();
   const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
   const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tomorrowStr),'Next 7 Days':q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10))};
-  return Object.keys(groups).map(g=>{
+  return renderScheduledRevisionsSection()+Object.keys(groups).map(g=>{
     const items=groups[g];
     return `<div class="section-title"><h2>${g}</h2><span class="hint">${items.length} due</span></div>
     <div class="card">${items.length===0?'<div class="emptystate">Nothing here.</div>':
@@ -1682,6 +1837,10 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.action==='tab'){/* handled in click */}
   if(t.dataset.field && t.dataset.topic){ handleTopicField(t); }
+  if(t.dataset.action==='scheduleRevisionSubjectChange'){
+    const wrap=document.getElementById('sr2_topic_wrap');
+    if(wrap)wrap.innerHTML=scheduleRevisionSubjectFieldHtml(t.value);
+  }
   if(t.dataset.action==='goalStatus'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.status=t.value; scheduleSave(); render(); }
   if(t.dataset.action==='goalProgress'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.progress=Number(t.value); scheduleSave(); render(); }
   if(t.dataset.action==='setPriority'){ DB.subjects[t.dataset.key].priority=t.value; scheduleSave(); render(); }
@@ -1690,7 +1849,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setTarget'){ DB.meta.targetHoursToday=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setQuestionTarget'){ DB.meta.questionTarget=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
-  if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
+  if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; task.completedAt=t.checked?new Date().toISOString():''; scheduleSave(); render();} }
   if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='togglePomoAuto'){ DB.meta.pomoAutoTransition=t.checked; scheduleSave(); }
@@ -1721,6 +1880,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden)return;
   stopAlarm();
+  checkScheduledRevisionReminders();
   if(!pomo.running)return;
   syncPomoFromClock();
   if(pomo.seconds<=0){ pomoPhaseEnd(); }
@@ -1803,7 +1963,12 @@ function handleAction(action,btn){
   if(action==='closeSubject'){openSubject=null; render(); return;}
   if(action==='addRevision'){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
-    if(topic.revisions<5){topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; scheduleSave(); render();}
+    if(topic.revisions<5){
+      topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised';
+      DB.revisionLog=DB.revisionLog||[];
+      DB.revisionLog.push({id:uid(),kind:'topic',name:topic.name,subject:subjLabel(d.key),revNum:topic.revisions,date:todayStr(),completedAt:new Date().toISOString()});
+      scheduleSave(); render();
+    }
     return;
   }
   if(action==='openEditRevisions'){
@@ -1849,12 +2014,104 @@ function handleAction(action,btn){
     scheduleSave(); closeModal(); render(); return;
   }
   if(action==='completeCustomRevision'){
+    const item=(DB.customRevisions||[]).find(c=>c.id===d.id);
+    if(item){
+      DB.revisionLog=DB.revisionLog||[];
+      DB.revisionLog.push({id:uid(),kind:'custom',name:item.text,subject:item.subject||'',revNum:item.revNum||null,date:todayStr(),completedAt:new Date().toISOString()});
+    }
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
     scheduleSave(); render(); return;
   }
   if(action==='deleteCustomRevision'){
     if(!confirm('Remove this revision reminder?'))return;
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
+    scheduleSave(); render(); return;
+  }
+  /* ---- Scheduled Revisions: planned in advance (Subject + Topic + date/time + note) ---- */
+  if(action==='openScheduleRevision'){
+    const firstKey=subjectKeys()[0]||'';
+    openModal(`<h3>📅 Schedule a Revision</h3>
+    <p class="sub" style="margin:0 0 10px;">Plan a revision in advance — it'll show up on the Dashboard as "Today's Scheduled Revisions" once it's due, with an optional reminder.</p>
+    <div class="formgrid" style="grid-template-columns:1fr;">
+      <label>Subject
+        <select id="sr2_subject" data-action="scheduleRevisionSubjectChange">
+          ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
+          <option value="">Other / not tracked</option>
+        </select>
+      </label>
+      <label>Topic <span id="sr2_topic_wrap">${scheduleRevisionSubjectFieldHtml(firstKey)}</span></label>
+      <div class="grid g2" style="gap:10px;">
+        <label>Revision Date <input type="date" id="sr2_date" value="${todayStr()}" min="${MIN_DATE}"></label>
+        <label>Time (optional) <input type="time" id="sr2_time"></label>
+      </div>
+      <label>Note (optional) <textarea id="sr2_note" placeholder="Anything to remember for this revision"></textarea></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveScheduleRevision">Schedule Revision</button></div>`);
+    return;
+  }
+  if(action==='saveScheduleRevision'){
+    const subjectKey=document.getElementById('sr2_subject').value;
+    const topicSelect=document.getElementById('sr2_topic');
+    const topicCustom=document.getElementById('sr2_topic_custom');
+    let topicId='', topicName='';
+    if(topicSelect){ topicId=topicSelect.value; const t=DB.subjects[subjectKey].topics.find(x=>x.id===topicId); topicName=t?t.name:''; }
+    else if(topicCustom){ topicName=topicCustom.value.trim(); }
+    if(!topicName){alert('Please choose or enter a topic to revise.'); return;}
+    const date=document.getElementById('sr2_date').value||todayStr();
+    const time=document.getElementById('sr2_time').value||'';
+    const note=document.getElementById('sr2_note').value.trim();
+    DB.scheduledRevisions=DB.scheduledRevisions||[];
+    DB.scheduledRevisions.push({
+      id:uid(),subjectKey:subjectKey||'',subjectLabel:subjectKey?subjLabel(subjectKey):'',
+      topicId:topicId||'',topicName,date,time,note,
+      status:'Scheduled',createdAt:new Date().toISOString(),completedAt:'',notifiedAt:''
+    });
+    scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='markScheduledRevisionDone'){
+    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
+    if(!item)return;
+    item.status='Completed'; item.completedAt=new Date().toISOString();
+    let revNum=null;
+    if(item.subjectKey&&item.topicId&&DB.subjects[item.subjectKey]){
+      const topic=DB.subjects[item.subjectKey].topics.find(x=>x.id===item.topicId);
+      if(topic&&topic.revisions<5){
+        topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised';
+        revNum=topic.revisions;
+      }
+    }
+    DB.revisionLog=DB.revisionLog||[];
+    DB.revisionLog.push({id:uid(),kind:'scheduled',name:item.topicName,subject:item.subjectLabel||'',revNum,date:todayStr(),completedAt:item.completedAt});
+    scheduleSave(); render(); return;
+  }
+  if(action==='skipScheduledRevision'){
+    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
+    if(item){ item.status='Skipped'; item.skippedAt=new Date().toISOString(); scheduleSave(); render(); }
+    return;
+  }
+  if(action==='openRescheduleRevision'){
+    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
+    if(!item)return;
+    openModal(`<h3>🔁 Reschedule Revision</h3>
+    <p class="sub" style="margin:0 0 10px;">${esc(item.topicName)}${item.subjectLabel?' · '+esc(item.subjectLabel):''}</p>
+    <div class="formgrid" style="grid-template-columns:1fr 1fr;">
+      <label>New Date <input type="date" id="sr2_reschedule_date" value="${item.date}" min="${MIN_DATE}"></label>
+      <label>Time (optional) <input type="time" id="sr2_reschedule_time" value="${item.time||''}"></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveRescheduleRevision" data-id="${item.id}">Save</button></div>`);
+    return;
+  }
+  if(action==='saveRescheduleRevision'){
+    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
+    if(!item)return;
+    item.date=document.getElementById('sr2_reschedule_date').value||item.date;
+    item.time=document.getElementById('sr2_reschedule_time').value||'';
+    item.status='Scheduled'; item.notifiedAt='';
+    scheduleSave(); closeModal(); render(); return;
+  }
+  if(action==='deleteScheduledRevision'){
+    if(!confirm('Delete this scheduled revision?'))return;
+    DB.scheduledRevisions=(DB.scheduledRevisions||[]).filter(s=>s.id!==d.id);
     scheduleSave(); render(); return;
   }
   if(action==='openNote'){
