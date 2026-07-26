@@ -89,3 +89,9 @@ The standalone preview HTML file is a single-file bundle of `index.html` + `css/
 - **Added: an optional "Sub Topic" field** to the Dashboard's "+ Add Revision" modal — a simple, manually-typed text field (e.g. "Time & Work — Pipes & Cisterns") for narrowing down a topic without it needing to exist as a tracked subtopic.
 - Shown alongside the reminder in the Due Revisions list when set, and folded into the entry's name when archived into Revision History on completion.
 - Fully optional — leaving it blank behaves exactly as before.
+
+### Unified Revision workflow (moved to Dashboard, single system)
+- **Removed the duplicate revision interface.** The Dashboard's separate "Due Revisions" card and "+ Add Revision" (freeform) button, and the Study page's standalone "Revision" tab, are gone as two separate surfaces. There is now exactly one Revision module — Scheduled Revisions + Today/Tomorrow/Next 7 Days — embedded directly on the Dashboard, which is the single place to manage revisions.
+- **"+ Schedule Revision" is now the one add-flow** for every kind of revision (previously there were two: a quick freeform reminder and a separate scheduled one). Any revisions already saved through the old quick-reminder flow are still shown (folded into Today/Tomorrow/Next 7 Days) and can still be completed or deleted — nothing existing was deleted or hidden.
+- **Added: optional Sub-topic field**, plus an optional Revision Number field, to the Schedule Revision form. The flow is now Subject → Topic → Sub-topic (optional) → Revision Number (optional) → Due Date/Time → Notes. Leaving Sub-topic or Revision Number blank behaves exactly as before.
+- **Synchronization unchanged and confirmed**: completing a revision from the Dashboard still updates the linked topic's revision count/date, logs to Revision History, and is reflected immediately in Analytics and the Study section, since those already read live from the same underlying data.

@@ -324,7 +324,7 @@ const TABS=[
 ];
 let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
-  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
+  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
   goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
 };
@@ -366,7 +366,6 @@ function renderStudyPage(){
   let content='';
   if(sub==='subjects')content=renderSubjects();
   else if(sub==='log')content=renderLog();
-  else if(sub==='revision')content=renderRevision();
   else if(sub==='notes')content=renderStudyNotes();
   else if(sub==='analytics')content=renderAnalytics();
   else if(sub==='history')content=renderHistoryArchive();
@@ -656,28 +655,6 @@ function scheduledRevisionsDueToday(){
   return (DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled'&&s.date<=today)
     .sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
 }
-function renderTodayScheduledRevisions(){
-  const due=scheduledRevisionsDueToday();
-  const today=todayStr();
-  if(!due.length)return '';
-  return `<div class="card" style="margin-top:14px;background:linear-gradient(160deg,var(--accent-50),var(--card));border-color:var(--accent-100);">
-    <div class="flexbetween" style="margin-bottom:8px;">
-      <div class="label">🔔 Today's Scheduled Revisions</div>
-      <span class="sub">${due.length} due</span>
-    </div>
-    ${due.map(s=>`<div class="flexbetween" style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px;gap:10px;">
-      <span>
-        ${esc(s.topicName)}${s.subjectLabel?` <span class="sub" style="color:var(--text-faint);">· ${esc(s.subjectLabel)}</span>`:''}${s.time?` <span class="sub" style="color:var(--text-faint);">· ${esc(s.time)}</span>`:''}${s.date<today?' <span class="tag high">Overdue</span>':''}
-        ${s.note?`<div class="sub" style="color:var(--text-faint);margin-top:2px;">${esc(s.note)}</div>`:''}
-      </span>
-      <span style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Done</button>
-        <button class="btn ghost sm" data-action="skipScheduledRevision" data-id="${s.id}">Skip</button>
-        <button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>
-      </span>
-    </div>`).join('')}
-  </div>`;
-}
 // Builds the <option> list for a subject's tracked topics — shared by the
 // Topic dropdown in both the Schedule Revision and Add Revision modals (kept
 // as a function so it can be regenerated when the Subject select changes,
@@ -718,7 +695,7 @@ function notifyScheduledRevision(item){
   if(typeof Notification==='undefined')return;
   if(!document.hidden)return; // consistent with the Pomodoro reminder: only interrupt when the tab isn't active
   if(Notification.permission!=='granted')return; // see notifySessionEnd — can't request permission from a non-gesture context
-  const body=`${item.topicName}${item.subjectLabel?' · '+item.subjectLabel:''} is due for revision.`;
+  const body=`${item.topicName}${item.subtopic?' — '+item.subtopic:''}${item.subjectLabel?' · '+item.subjectLabel:''} is due for revision.`;
   new Notification('AtlasTrackIt — Revision Reminder',{body});
 }
 // Runs periodically (see dayRollcheckInterval) to fire a one-time reminder the
@@ -740,33 +717,6 @@ function checkScheduledRevisionReminders(){
 }
 
 /* ================= DASHBOARD (daily home screen) ================= */
-function renderDueRevisionItems(dueToday){
-  const today=todayStr();
-  const customDue=(DB.customRevisions||[]).filter(c=>c.due<=today).sort((a,b)=>a.due.localeCompare(b.due));
-  const scheduledDue=scheduledRevisionsDueToday();
-  const total=dueToday.length+customDue.length+scheduledDue.length;
-  if(total===0)return '<div class="emptystate">Nothing due — great pacing.</div>';
-  const topicRows=dueToday.slice(0,10).map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-      <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum}</span></span>
-    </label>
-  </div>`).join('');
-  const customRows=customDue.slice(0,10).map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-      <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(c.text)}${c.subtopic?` <span class="sub" style="color:var(--text-faint);">— ${esc(c.subtopic)}</span>`:''} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
-    </label>
-    <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
-  </div>`).join('');
-  const scheduledRows=scheduledDue.slice(0,10).map(s=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-      <input type="checkbox" data-action="markScheduledRevisionDone" data-id="${s.id}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(s.topicName)} ${s.subjectLabel?`<span class="sub" style="color:var(--text-faint);">· ${esc(s.subjectLabel)}</span>`:''} <span class="tag med">Scheduled</span></span>
-    </label>
-  </div>`).join('');
-  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}${scheduledRows}</div>`;
-}
 function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
@@ -775,7 +725,6 @@ function renderDashboard(){
   const tasks=DB.tasks[today]||[];
   const doneCount=tasks.filter(t=>t.done).length;
   const taskPct=tasks.length?doneCount/tasks.length*100:0;
-  const dueToday=revisionQueue().filter(r=>r.due<=today);
   const quote=QUOTES[new Date().getDate()%QUOTES.length];
   return `
   <div class="grid g3">
@@ -842,13 +791,6 @@ function renderDashboard(){
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     <div class="card">
-      <div class="flexbetween" style="margin-bottom:8px;">
-        <div class="label">Due Revisions</div>
-        <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add Revision</button>
-      </div>
-      ${renderDueRevisionItems(dueToday)}
-    </div>
-    <div class="card">
       <div class="label" style="margin-bottom:10px;">Quick Progress Summary</div>
       <div class="grid g2" style="gap:10px;">
         <div class="sub">Syllabus<br><b style="color:var(--text);font-size:16px;">${syllabusPct().toFixed(0)}%</b></div>
@@ -857,12 +799,11 @@ function renderDashboard(){
         <div class="sub">Total Hours<br><b style="color:var(--text);font-size:16px;">${totalHours().toFixed(1)}h</b></div>
       </div>
     </div>
+    ${renderStudyHistoryCard()}
   </div>
 
-  ${renderTodayScheduledRevisions()}
-
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
-    ${renderStudyHistoryCard()}
+  <div style="margin-top:14px;">
+    ${renderRevision()}
   </div>
 
   <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
@@ -1002,10 +943,11 @@ function renderScheduledRevisionsSection(){
   </div>
   <div class="card" style="overflow-x:auto;">
   ${items.length===0?'<div class="emptystate">Nothing scheduled yet — plan your next revision ahead of time.</div>':
-  `<table><thead><tr><th>Topic</th><th>Subject</th><th>Date</th><th>Time</th><th>Note</th><th>Status</th><th></th></tr></thead><tbody>
+  `<table><thead><tr><th>Topic</th><th>Subject</th><th>Rev #</th><th>Date</th><th>Time</th><th>Note</th><th>Status</th><th></th></tr></thead><tbody>
   ${items.map(s=>`<tr>
-    <td>${esc(s.topicName)}</td>
+    <td>${esc(s.topicName)}${s.subtopic?`<div class="sub" style="color:var(--text-faint);">${esc(s.subtopic)}</div>`:''}</td>
     <td>${esc(s.subjectLabel||'—')}</td>
+    <td>${s.revNum?esc(String(s.revNum)):'—'}</td>
     <td>${esc(s.date)}</td>
     <td>${esc(s.time||'—')}</td>
     <td class="notes-preview" title="${esc(s.note||'')}">${esc(s.note||'—')}</td>
@@ -1026,19 +968,33 @@ function normalizeQueueRow(r){
     actionHtml:`<button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button>`};
 }
 function normalizeScheduledRow(s){
-  return {name:s.topicName,subject:s.subjectLabel||'—',revNum:'<span class="tag med">Scheduled</span>',due:s.date+(s.time?' · '+esc(s.time):''),
+  return {name:s.topicName+(s.subtopic?' — '+s.subtopic:''),subject:s.subjectLabel||'—',
+    revNum:s.revNum?('Rev '+esc(String(s.revNum))):'<span class="tag med">Scheduled</span>',
+    due:s.date+(s.time?' · '+esc(s.time):''),
     actionHtml:`<button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Mark Completed</button>`};
+}
+// Legacy quick reminders created before Scheduled Revision became the single
+// add-flow — kept visible here (rather than a separate widget) so nothing a
+// user already entered disappears.
+function normalizeCustomRow(c){
+  return {name:c.text+(c.subtopic?' — '+c.subtopic:''),subject:c.subject||'—',
+    revNum:c.revNum?('Rev '+esc(String(c.revNum))):'<span class="tag med">Reminder</span>',
+    due:c.due,
+    actionHtml:`<button class="btn sm" data-action="completeCustomRevision" data-id="${c.id}">Mark Completed</button> <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Delete">🗑</button>`};
 }
 function renderRevision(){
   const q=revisionQueue();
   const today=todayStr();
   const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
+  const next7=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
   const scheduled=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled');
+  const legacy=DB.customRevisions||[];
   const groups={
-    Today:[...q.filter(r=>r.due<=today).map(normalizeQueueRow), ...scheduled.filter(s=>s.date<=today).map(normalizeScheduledRow)],
-    Tomorrow:[...q.filter(r=>r.due===tomorrowStr).map(normalizeQueueRow), ...scheduled.filter(s=>s.date===tomorrowStr).map(normalizeScheduledRow)],
-    'Next 7 Days':[...q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10)).map(normalizeQueueRow),
-      ...scheduled.filter(s=>s.date>tomorrowStr&&s.date<=new Date(Date.now()+7*86400000).toISOString().slice(0,10)).map(normalizeScheduledRow)]
+    Today:[...q.filter(r=>r.due<=today).map(normalizeQueueRow), ...scheduled.filter(s=>s.date<=today).map(normalizeScheduledRow), ...legacy.filter(c=>c.due<=today).map(normalizeCustomRow)],
+    Tomorrow:[...q.filter(r=>r.due===tomorrowStr).map(normalizeQueueRow), ...scheduled.filter(s=>s.date===tomorrowStr).map(normalizeScheduledRow), ...legacy.filter(c=>c.due===tomorrowStr).map(normalizeCustomRow)],
+    'Next 7 Days':[...q.filter(r=>r.due>tomorrowStr&&r.due<=next7).map(normalizeQueueRow),
+      ...scheduled.filter(s=>s.date>tomorrowStr&&s.date<=next7).map(normalizeScheduledRow),
+      ...legacy.filter(c=>c.due>tomorrowStr&&c.due<=next7).map(normalizeCustomRow)]
   };
   return renderScheduledRevisionsSection()+Object.keys(groups).map(g=>{
     const items=groups[g];
@@ -2097,38 +2053,9 @@ function handleAction(action,btn){
     else{ if(increased)topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; }
     scheduleSave(); closeModal(); render(); return;
   }
-  /* ---- Custom (freeform) revision reminders ---- */
-  if(action==='openAddCustomRevision'){
-    const firstKey=subjectKeys()[0]||'';
-    openModal(`<h3>Add a Revision</h3>
-    <p class="sub" style="margin:0 0 10px;">Add a quick revision reminder — for anything not already tracked as a syllabus topic.</p>
-    <div class="formgrid" style="grid-template-columns:1fr;">
-      <label>Subject
-        <select id="cr_subject_sel" data-action="subjectFieldChange" data-prefix="cr">
-          ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
-          <option value="">Other / not tracked</option>
-        </select>
-      </label>
-      <label>Topic / Item <span id="cr_topic_wrap">${topicFieldHtml(firstKey,'cr')}</span></label>
-      <label>Sub Topic (optional) <input type="text" id="cr_subtopic" placeholder="e.g. Time & Work — Pipes & Cisterns"></label>
-      <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
-      <label>Revision # (optional) <input type="number" min="1" id="cr_revnum" placeholder="e.g. 1"></label>
-    </div>
-    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Add Revision</button></div>`);
-    return;
-  }
-  if(action==='saveCustomRevision'){
-    const subjectKey=document.getElementById('cr_subject_sel').value;
-    const {topicName:text}=readTopicField('cr',subjectKey);
-    if(!text){alert('Please choose or enter a topic or item to revise.'); return;}
-    const subject=subjectKey?subjLabel(subjectKey):'';
-    const subtopic=document.getElementById('cr_subtopic').value.trim();
-    const due=document.getElementById('cr_due').value||todayStr();
-    const revNum=document.getElementById('cr_revnum').value?Number(document.getElementById('cr_revnum').value):null;
-    DB.customRevisions=DB.customRevisions||[];
-    DB.customRevisions.push({id:uid(),text,subject,subtopic,due,revNum});
-    scheduleSave(); closeModal(); render(); return;
-  }
+  /* ---- Legacy freeform revision reminders (no longer created via the UI —
+     Schedule Revision is the single add-flow — but still completable/deletable
+     so nothing a user already entered is lost) ---- */
   if(action==='completeCustomRevision'){
     const item=(DB.customRevisions||[]).find(c=>c.id===d.id);
     if(item){
@@ -2148,7 +2075,7 @@ function handleAction(action,btn){
   if(action==='openScheduleRevision'){
     const firstKey=subjectKeys()[0]||'';
     openModal(`<h3>📅 Schedule a Revision</h3>
-    <p class="sub" style="margin:0 0 10px;">Plan a revision in advance — it'll show up on the Dashboard as "Today's Scheduled Revisions" once it's due, with an optional reminder.</p>
+    <p class="sub" style="margin:0 0 10px;">Plan a revision in advance — it'll show up under Today's Revisions once it's due, with an optional reminder.</p>
     <div class="formgrid" style="grid-template-columns:1fr;">
       <label>Subject
         <select id="sr2_subject" data-action="subjectFieldChange" data-prefix="sr2">
@@ -2157,11 +2084,13 @@ function handleAction(action,btn){
         </select>
       </label>
       <label>Topic <span id="sr2_topic_wrap">${topicFieldHtml(firstKey,'sr2')}</span></label>
+      <label>Sub-topic (optional) <input type="text" id="sr2_subtopic" placeholder="e.g. Prime Factorization"></label>
       <div class="grid g2" style="gap:10px;">
+        <label>Revision Number (optional) <input type="number" min="1" id="sr2_revnum" placeholder="e.g. 1"></label>
         <label>Revision Date <input type="date" id="sr2_date" value="${todayStr()}" min="${MIN_DATE}"></label>
-        <label>Time (optional) <input type="time" id="sr2_time"></label>
       </div>
-      <label>Note (optional) <textarea id="sr2_note" placeholder="Anything to remember for this revision"></textarea></label>
+      <label>Time (optional) <input type="time" id="sr2_time"></label>
+      <label>Notes (optional) <textarea id="sr2_note" placeholder="Anything to remember for this revision"></textarea></label>
     </div>
     <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveScheduleRevision">Schedule Revision</button></div>`);
     return;
@@ -2170,13 +2099,15 @@ function handleAction(action,btn){
     const subjectKey=document.getElementById('sr2_subject').value;
     const {topicId,topicName}=readTopicField('sr2',subjectKey);
     if(!topicName){alert('Please choose or enter a topic to revise.'); return;}
+    const subtopic=document.getElementById('sr2_subtopic').value.trim();
+    const revNum=document.getElementById('sr2_revnum').value?Number(document.getElementById('sr2_revnum').value):null;
     const date=document.getElementById('sr2_date').value||todayStr();
     const time=document.getElementById('sr2_time').value||'';
     const note=document.getElementById('sr2_note').value.trim();
     DB.scheduledRevisions=DB.scheduledRevisions||[];
     DB.scheduledRevisions.push({
       id:uid(),subjectKey:subjectKey||'',subjectLabel:subjectKey?subjLabel(subjectKey):'',
-      topicId:topicId||'',topicName,date,time,note,
+      topicId:topicId||'',topicName,subtopic,revNum,date,time,note,
       status:'Scheduled',createdAt:new Date().toISOString(),completedAt:'',notifiedAt:''
     });
     scheduleSave(); closeModal(); render(); return;
@@ -2185,16 +2116,17 @@ function handleAction(action,btn){
     const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
     if(!item)return;
     item.status='Completed'; item.completedAt=new Date().toISOString();
-    let revNum=null;
+    let revNum=item.revNum||null;
     if(item.subjectKey&&item.topicId&&DB.subjects[item.subjectKey]){
       const topic=DB.subjects[item.subjectKey].topics.find(x=>x.id===item.topicId);
       if(topic&&topic.revisions<5){
         topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised';
-        revNum=topic.revisions;
+        revNum=item.revNum||topic.revisions;
       }
     }
     DB.revisionLog=DB.revisionLog||[];
-    DB.revisionLog.push({id:uid(),kind:'scheduled',name:item.topicName,subject:item.subjectLabel||'',revNum,date:todayStr(),completedAt:item.completedAt});
+    const name=item.topicName+(item.subtopic?' — '+item.subtopic:'');
+    DB.revisionLog.push({id:uid(),kind:'scheduled',name,subject:item.subjectLabel||'',revNum,date:todayStr(),completedAt:item.completedAt});
     scheduleSave(); render(); return;
   }
   if(action==='skipScheduledRevision'){
