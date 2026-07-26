@@ -939,10 +939,14 @@ function scheduledRevisionDueTs(item){
   const ts=new Date(`${item.date}T${t}:00`).getTime();
   return isNaN(ts)?null:ts;
 }
-function renderTodayScheduledRevisions(){
+function scheduledRevisionsDueToday(){
   const today=todayStr();
-  const due=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled'&&s.date<=today)
+  return (DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled'&&s.date<=today)
     .sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
+}
+function renderTodayScheduledRevisions(){
+  const due=scheduledRevisionsDueToday();
+  const today=todayStr();
   if(!due.length)return '';
   return `<div class="card" style="margin-top:14px;background:linear-gradient(160deg,var(--accent-50),var(--card));border-color:var(--accent-100);">
     <div class="flexbetween" style="margin-bottom:8px;">
@@ -962,27 +966,48 @@ function renderTodayScheduledRevisions(){
     </div>`).join('')}
   </div>`;
 }
-// Builds the <option> list for a subject's tracked topics, used by the Schedule
-// Revision modal's Topic dropdown (kept as a function so it can be regenerated
-// when the Subject select changes, without a full page render()).
+// Builds the <option> list for a subject's tracked topics — shared by the
+// Topic dropdown in both the Schedule Revision and Add Revision modals (kept
+// as a function so it can be regenerated when the Subject select changes,
+// without a full page render()).
 function scheduleTopicOptionsHtml(subjectKey){
   if(!subjectKey||!DB.subjects[subjectKey])return '';
   return DB.subjects[subjectKey].topics.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
 }
-function scheduleRevisionSubjectFieldHtml(subjectKey){
-  if(subjectKey&&DB.subjects[subjectKey]){
-    return `<select id="sr2_topic">${scheduleTopicOptionsHtml(subjectKey)}</select>`;
+// Topic field for a given subject + a DOM id prefix (so the same component can
+// appear in more than one modal). If the subject has tracked topics, shows a
+// dropdown of them plus a "type manually" option that reveals a free-text
+// input — so a topic not yet in the list can still be entered even when a
+// real subject is selected. Falls back straight to free text for "Other" /
+// subjects with no topics yet.
+function topicFieldHtml(subjectKey,prefix){
+  if(subjectKey&&DB.subjects[subjectKey]&&DB.subjects[subjectKey].topics.length){
+    return `<select id="${prefix}_topic" data-action="topicSelectChange" data-prefix="${prefix}">
+      ${scheduleTopicOptionsHtml(subjectKey)}
+      <option value="__custom__">✎ Other / type manually…</option>
+    </select>
+    <input type="text" id="${prefix}_topic_custom" placeholder="Type topic name" style="display:none;margin-top:6px;">`;
   }
-  return `<input type="text" id="sr2_topic_custom" placeholder="e.g. Percentage formulas, Chapter 5">`;
+  return `<input type="text" id="${prefix}_topic_custom" placeholder="e.g. Percentage formulas, Chapter 5">`;
+}
+// Reads back whichever topic was actually selected/typed for a given prefix +
+// subject — used by both modals' save handlers.
+function readTopicField(prefix,subjectKey){
+  const select=document.getElementById(prefix+'_topic');
+  const custom=document.getElementById(prefix+'_topic_custom');
+  if(select&&select.value&&select.value!=='__custom__'){
+    const topic=(subjectKey&&DB.subjects[subjectKey])?DB.subjects[subjectKey].topics.find(x=>x.id===select.value):null;
+    return {topicId:select.value,topicName:topic?topic.name:''};
+  }
+  return {topicId:'',topicName:custom?custom.value.trim():''};
 }
 function notifyScheduledRevision(item){
   if(!DB.meta.pomoNotify)return;
   if(typeof Notification==='undefined')return;
   if(!document.hidden)return; // consistent with the Pomodoro reminder: only interrupt when the tab isn't active
+  if(Notification.permission!=='granted')return; // see notifySessionEnd — can't request permission from a non-gesture context
   const body=`${item.topicName}${item.subjectLabel?' · '+item.subjectLabel:''} is due for revision.`;
-  const fire=()=>new Notification('AtlasTrackIt — Revision Reminder',{body});
-  if(Notification.permission==='granted')fire();
-  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
+  new Notification('AtlasTrackIt — Revision Reminder',{body});
 }
 // Runs periodically (see dayRollcheckInterval) to fire a one-time reminder the
 // moment a scheduled revision becomes due — by date if no time was given, or by
@@ -1006,7 +1031,8 @@ function checkScheduledRevisionReminders(){
 function renderDueRevisionItems(dueToday){
   const today=todayStr();
   const customDue=(DB.customRevisions||[]).filter(c=>c.due<=today).sort((a,b)=>a.due.localeCompare(b.due));
-  const total=dueToday.length+customDue.length;
+  const scheduledDue=scheduledRevisionsDueToday();
+  const total=dueToday.length+customDue.length+scheduledDue.length;
   if(total===0)return '<div class="emptystate">Nothing due — great pacing.</div>';
   const topicRows=dueToday.slice(0,10).map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
     <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
@@ -1017,11 +1043,17 @@ function renderDueRevisionItems(dueToday){
   const customRows=customDue.slice(0,10).map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
     <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
       <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(c.text)} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
+      <span>${esc(c.text)}${c.subtopic?` <span class="sub" style="color:var(--text-faint);">— ${esc(c.subtopic)}</span>`:''} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
     </label>
     <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
   </div>`).join('');
-  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}</div>`;
+  const scheduledRows=scheduledDue.slice(0,10).map(s=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+      <input type="checkbox" data-action="markScheduledRevisionDone" data-id="${s.id}" style="width:15px;height:15px;flex-shrink:0;">
+      <span>${esc(s.topicName)} ${s.subjectLabel?`<span class="sub" style="color:var(--text-faint);">· ${esc(s.subjectLabel)}</span>`:''} <span class="tag med">Scheduled</span></span>
+    </label>
+  </div>`).join('');
+  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}${scheduledRows}</div>`;
 }
 function renderDashboard(){
   const today=todayStr();
@@ -1161,17 +1193,52 @@ function buildActivityArchive(){
     });
   });
   (DB.revisionLog||[]).forEach(r=>{
-    const label=r.name+(r.subject?' · '+r.subject:'')+(r.revNum?' · Rev '+r.revNum:'')+(r.kind==='custom'?' · Custom':'');
+    const kindTag=r.kind==='custom'?' · Custom':(r.kind==='scheduled'?' · Scheduled':'');
+    const label=r.name+(r.subject?' · '+r.subject:'')+(r.revNum?' · Rev '+r.revNum:'')+kindTag;
     (byDate[r.date]=byDate[r.date]||[]).push({type:'revision',text:label,completedAt:r.completedAt||''});
   });
   return byDate;
+}
+// Today's Completion: completed-today count vs. everything still outstanding
+// today (pending tasks + revisions still due today across all three revision
+// sources), so the ratio reflects "today's plan" rather than a shrinking
+// denominator as items get completed.
+function todaysCompletionSummary(){
+  const today=todayStr();
+  const completedToday=(buildActivityArchive()[today]||[]).length;
+  const tasksLeft=(DB.tasks[today]||[]).filter(t=>!t.done).length;
+  const queueLeft=revisionQueue().filter(r=>r.due<=today).length;
+  const customLeft=(DB.customRevisions||[]).filter(c=>c.due<=today).length;
+  const scheduledLeft=scheduledRevisionsDueToday().length;
+  const outstanding=tasksLeft+queueLeft+customLeft+scheduledLeft;
+  const total=completedToday+outstanding;
+  const pct=total>0?Math.round(completedToday/total*100):0;
+  return {completedToday,total,pct};
+}
+function renderTodaysCompletionSummary(){
+  const {completedToday,total,pct}=todaysCompletionSummary();
+  if(total===0){
+    return `<div class="card" style="margin-bottom:14px;">
+      <div class="label" style="margin-bottom:4px;">Today's Completion</div>
+      <div class="emptystate" style="margin-top:4px;">Nothing planned or completed today yet.</div>
+    </div>`;
+  }
+  return `<div class="card" style="margin-bottom:14px;">
+    <div class="flexbetween" style="margin-bottom:8px;">
+      <div class="label">Today's Completion</div>
+      <span class="sub">${completedToday}/${total} completed</span>
+    </div>
+    <div class="bar"><span style="width:${pct}%"></span></div>
+    <div class="sub" style="margin-top:6px;">${pct}% of today's activities & revisions done</div>
+  </div>`;
 }
 function renderHistoryArchive(){
   const byDate=buildActivityArchive();
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   const header=`<div class="section-title"><h2>History / Archive</h2><span class="hint">Completed tasks & revisions — kept, not deleted, organized by date</span></div>`;
+  const summary=renderTodaysCompletionSummary();
   if(!dates.length){
-    return header+`<div class="emptystate">Nothing completed yet — finished daily tasks and completed revisions will show up here, grouped by the day you completed them.</div>`;
+    return header+summary+`<div class="emptystate">Nothing completed yet — finished daily tasks and completed revisions will show up here, grouped by the day you completed them.</div>`;
   }
   const sections=dates.map(date=>{
     const items=byDate[date].slice().sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
@@ -1184,7 +1251,7 @@ function renderHistoryArchive(){
       ${rows}
     </div>`;
   }).join('');
-  return header+sections;
+  return header+summary+sections;
 }
 function ringSVG(pct){
   const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
@@ -1242,18 +1309,32 @@ function renderScheduledRevisionsSection(){
   </tbody></table>`}
   </div>`;
 }
+function normalizeQueueRow(r){
+  return {name:r.name,subject:r.subject,revNum:'Rev '+r.revNum,due:r.due,
+    actionHtml:`<button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button>`};
+}
+function normalizeScheduledRow(s){
+  return {name:s.topicName,subject:s.subjectLabel||'—',revNum:'<span class="tag med">Scheduled</span>',due:s.date+(s.time?' · '+esc(s.time):''),
+    actionHtml:`<button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Mark Completed</button>`};
+}
 function renderRevision(){
   const q=revisionQueue();
   const today=todayStr();
   const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
-  const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tomorrowStr),'Next 7 Days':q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10))};
+  const scheduled=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled');
+  const groups={
+    Today:[...q.filter(r=>r.due<=today).map(normalizeQueueRow), ...scheduled.filter(s=>s.date<=today).map(normalizeScheduledRow)],
+    Tomorrow:[...q.filter(r=>r.due===tomorrowStr).map(normalizeQueueRow), ...scheduled.filter(s=>s.date===tomorrowStr).map(normalizeScheduledRow)],
+    'Next 7 Days':[...q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10)).map(normalizeQueueRow),
+      ...scheduled.filter(s=>s.date>tomorrowStr&&s.date<=new Date(Date.now()+7*86400000).toISOString().slice(0,10)).map(normalizeScheduledRow)]
+  };
   return renderScheduledRevisionsSection()+Object.keys(groups).map(g=>{
     const items=groups[g];
     return `<div class="section-title"><h2>${g}</h2><span class="hint">${items.length} due</span></div>
     <div class="card">${items.length===0?'<div class="emptystate">Nothing here.</div>':
     `<table><thead><tr><th>Topic</th><th>Subject</th><th>Revision #</th><th>Due</th><th></th></tr></thead><tbody>
-    ${items.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.subject)}</td><td>Rev ${r.revNum}</td><td>${r.due}</td>
-    <td><button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button></td></tr>`).join('')}
+    ${items.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.subject)}</td><td>${r.revNum}</td><td>${r.due}</td>
+    <td>${r.actionHtml}</td></tr>`).join('')}
     </tbody></table>`}</div>`;
   }).join('');
 }
@@ -1811,8 +1892,11 @@ function renderSettingsPage(){
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoSound" ${DB.meta.pomoSound?'checked':''}></label>
     </div>
     <div class="settings-row">
-      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active${typeof Notification!=='undefined'&&Notification.permission==='denied'?' — currently blocked; enable notifications for this site in your browser settings to receive them':''}</div></div>
-      <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
+      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active${typeof Notification!=='undefined'&&Notification.permission==='denied'?' — currently blocked; enable notifications for this site in your browser settings to receive them':''}${typeof Notification!=='undefined'&&Notification.permission==='default'&&DB.meta.pomoNotify?' — not yet allowed by your browser; click Enable to turn them on':''}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${typeof Notification!=='undefined'&&Notification.permission==='default'&&DB.meta.pomoNotify?'<button class="btn sm" data-action="requestPomoNotifyPermission">Enable</button>':''}
+        <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
+      </div>
     </div>
   </div>
 
@@ -1981,9 +2065,15 @@ function notifySessionEnd(nextMode){
   if(!DB.meta.pomoNotify)return;
   if(typeof Notification==='undefined')return;
   if(!document.hidden)return; // only notify when the tab isn't active
-  const fire=()=>new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
-  if(Notification.permission==='granted')fire();
-  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
+  // Only fire if permission was already granted. Browsers require a genuine user
+  // gesture (a click) to show the permission prompt — requesting it here, from a
+  // background setTimeout, is silently ignored by the browser (no prompt, no
+  // grant), which is why notifications could look "enabled" via the checkbox yet
+  // never actually appear. The only place permission can really be requested is
+  // the Settings toggle / "Enable" button below, both real clicks.
+  if(Notification.permission==='granted'){
+    new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
+  }
   // Note: if Notification.permission is 'denied', the browser will never
   // prompt again — the user must re-enable notifications for this site in
   // their browser settings, there's no way for the page to force it.
@@ -2125,9 +2215,18 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.action==='tab'){/* handled in click */}
   if(t.dataset.field && t.dataset.topic){ handleTopicField(t); }
-  if(t.dataset.action==='scheduleRevisionSubjectChange'){
-    const wrap=document.getElementById('sr2_topic_wrap');
-    if(wrap)wrap.innerHTML=scheduleRevisionSubjectFieldHtml(t.value);
+  if(t.dataset.action==='subjectFieldChange'){
+    const prefix=t.dataset.prefix;
+    const wrap=document.getElementById(prefix+'_topic_wrap');
+    if(wrap)wrap.innerHTML=topicFieldHtml(t.value,prefix);
+  }
+  if(t.dataset.action==='topicSelectChange'){
+    const prefix=t.dataset.prefix;
+    const custom=document.getElementById(prefix+'_topic_custom');
+    if(custom){
+      if(t.value==='__custom__'){ custom.style.display='block'; custom.focus(); }
+      else custom.style.display='none';
+    }
   }
   if(t.dataset.action==='goalStatus'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.status=t.value; scheduleSave(); render(); }
   if(t.dataset.action==='goalProgress'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.progress=Number(t.value); scheduleSave(); render(); }
@@ -2144,7 +2243,11 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='togglePomoSound'){ DB.meta.pomoSound=t.checked; scheduleSave(); }
   if(t.dataset.action==='togglePomoNotify'){
     DB.meta.pomoNotify=t.checked; scheduleSave();
-    if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default')Notification.requestPermission();
+    if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default'){
+      Notification.requestPermission().then(()=>render());
+    }else{
+      render();
+    }
   }
   if(t.id==='importFile'){ importDataFromFile(t); }
 });
@@ -2206,6 +2309,10 @@ function handleAction(action,btn){
     savePomoState(); scheduleSave(); render(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
+  if(action==='requestPomoNotifyPermission'){
+    if(typeof Notification!=='undefined')Notification.requestPermission().then(()=>render());
+    return;
+  }
   if(action==='atlasChip'){
     if(atlasWaiting)return;
     const ta=document.getElementById('atlasInput');
@@ -2280,11 +2387,18 @@ function handleAction(action,btn){
   }
   /* ---- Custom (freeform) revision reminders ---- */
   if(action==='openAddCustomRevision'){
+    const firstKey=subjectKeys()[0]||'';
     openModal(`<h3>Add a Revision</h3>
     <p class="sub" style="margin:0 0 10px;">Add a quick revision reminder — for anything not already tracked as a syllabus topic.</p>
     <div class="formgrid" style="grid-template-columns:1fr;">
-      <label>Topic / Item <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
-      <label>Subject (optional) <input type="text" id="cr_subject" placeholder="e.g. Quant"></label>
+      <label>Subject
+        <select id="cr_subject_sel" data-action="subjectFieldChange" data-prefix="cr">
+          ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
+          <option value="">Other / not tracked</option>
+        </select>
+      </label>
+      <label>Topic / Item <span id="cr_topic_wrap">${topicFieldHtml(firstKey,'cr')}</span></label>
+      <label>Sub Topic (optional) <input type="text" id="cr_subtopic" placeholder="e.g. Time & Work — Pipes & Cisterns"></label>
       <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
       <label>Revision # (optional) <input type="number" min="1" id="cr_revnum" placeholder="e.g. 1"></label>
     </div>
@@ -2292,20 +2406,23 @@ function handleAction(action,btn){
     return;
   }
   if(action==='saveCustomRevision'){
-    const text=document.getElementById('cr_text').value.trim();
-    if(!text){alert('Please enter a topic or item to revise.'); return;}
-    const subject=document.getElementById('cr_subject').value.trim();
+    const subjectKey=document.getElementById('cr_subject_sel').value;
+    const {topicName:text}=readTopicField('cr',subjectKey);
+    if(!text){alert('Please choose or enter a topic or item to revise.'); return;}
+    const subject=subjectKey?subjLabel(subjectKey):'';
+    const subtopic=document.getElementById('cr_subtopic').value.trim();
     const due=document.getElementById('cr_due').value||todayStr();
     const revNum=document.getElementById('cr_revnum').value?Number(document.getElementById('cr_revnum').value):null;
     DB.customRevisions=DB.customRevisions||[];
-    DB.customRevisions.push({id:uid(),text,subject,due,revNum});
+    DB.customRevisions.push({id:uid(),text,subject,subtopic,due,revNum});
     scheduleSave(); closeModal(); render(); return;
   }
   if(action==='completeCustomRevision'){
     const item=(DB.customRevisions||[]).find(c=>c.id===d.id);
     if(item){
       DB.revisionLog=DB.revisionLog||[];
-      DB.revisionLog.push({id:uid(),kind:'custom',name:item.text,subject:item.subject||'',revNum:item.revNum||null,date:todayStr(),completedAt:new Date().toISOString()});
+      const name=item.text+(item.subtopic?' — '+item.subtopic:'');
+      DB.revisionLog.push({id:uid(),kind:'custom',name,subject:item.subject||'',revNum:item.revNum||null,date:todayStr(),completedAt:new Date().toISOString()});
     }
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
     scheduleSave(); render(); return;
@@ -2322,12 +2439,12 @@ function handleAction(action,btn){
     <p class="sub" style="margin:0 0 10px;">Plan a revision in advance — it'll show up on the Dashboard as "Today's Scheduled Revisions" once it's due, with an optional reminder.</p>
     <div class="formgrid" style="grid-template-columns:1fr;">
       <label>Subject
-        <select id="sr2_subject" data-action="scheduleRevisionSubjectChange">
+        <select id="sr2_subject" data-action="subjectFieldChange" data-prefix="sr2">
           ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
           <option value="">Other / not tracked</option>
         </select>
       </label>
-      <label>Topic <span id="sr2_topic_wrap">${scheduleRevisionSubjectFieldHtml(firstKey)}</span></label>
+      <label>Topic <span id="sr2_topic_wrap">${topicFieldHtml(firstKey,'sr2')}</span></label>
       <div class="grid g2" style="gap:10px;">
         <label>Revision Date <input type="date" id="sr2_date" value="${todayStr()}" min="${MIN_DATE}"></label>
         <label>Time (optional) <input type="time" id="sr2_time"></label>
@@ -2339,11 +2456,7 @@ function handleAction(action,btn){
   }
   if(action==='saveScheduleRevision'){
     const subjectKey=document.getElementById('sr2_subject').value;
-    const topicSelect=document.getElementById('sr2_topic');
-    const topicCustom=document.getElementById('sr2_topic_custom');
-    let topicId='', topicName='';
-    if(topicSelect){ topicId=topicSelect.value; const t=DB.subjects[subjectKey].topics.find(x=>x.id===topicId); topicName=t?t.name:''; }
-    else if(topicCustom){ topicName=topicCustom.value.trim(); }
+    const {topicId,topicName}=readTopicField('sr2',subjectKey);
     if(!topicName){alert('Please choose or enter a topic to revise.'); return;}
     const date=document.getElementById('sr2_date').value||todayStr();
     const time=document.getElementById('sr2_time').value||'';
