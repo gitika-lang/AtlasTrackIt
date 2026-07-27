@@ -66,7 +66,8 @@ function defaultState(){
   Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
-      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr()},
+      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr(),
+      lastSessionSubjectKey:'',lastSessionTopicId:'',lastSessionTopicName:'',lastSessionSubtopic:'',lastSessionType:'Study'},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[],
     profile:{name:''}
@@ -661,9 +662,9 @@ function scheduledRevisionsDueToday(){
 // Topic dropdown in both the Schedule Revision and Add Revision modals (kept
 // as a function so it can be regenerated when the Subject select changes,
 // without a full page render()).
-function scheduleTopicOptionsHtml(subjectKey){
+function scheduleTopicOptionsHtml(subjectKey,selectedTopicId){
   if(!subjectKey||!DB.subjects[subjectKey])return '';
-  return DB.subjects[subjectKey].topics.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  return DB.subjects[subjectKey].topics.map(t=>`<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${esc(t.name)}</option>`).join('');
 }
 // Topic field for a given subject + a DOM id prefix (so the same component can
 // appear in more than one modal). If the subject has tracked topics, shows a
@@ -671,10 +672,10 @@ function scheduleTopicOptionsHtml(subjectKey){
 // input — so a topic not yet in the list can still be entered even when a
 // real subject is selected. Falls back straight to free text for "Other" /
 // subjects with no topics yet.
-function topicFieldHtml(subjectKey,prefix){
+function topicFieldHtml(subjectKey,prefix,selectedTopicId){
   if(subjectKey&&DB.subjects[subjectKey]&&DB.subjects[subjectKey].topics.length){
     return `<select id="${prefix}_topic" data-action="topicSelectChange" data-prefix="${prefix}">
-      ${scheduleTopicOptionsHtml(subjectKey)}
+      ${scheduleTopicOptionsHtml(subjectKey,selectedTopicId)}
       <option value="__custom__">✎ Other / type manually…</option>
     </select>
     <input type="text" id="${prefix}_topic_custom" placeholder="Type topic name" style="display:none;margin-top:6px;">`;
@@ -753,12 +754,20 @@ function renderDashboard(){
       <div class="label">Study Session</div>
       <span class="sub" id="studySessionMode">${pomo.mode==='Work'?'🎯 Study Session':'☕ Break'}</span>
     </div>
+    ${activeStudySession.active?`<div class="sub" style="margin:6px 0 0;font-size:12.5px;">
+      <span style="color:var(--accent-700);font-weight:700;">${esc(activeStudySession.topicName)}${activeStudySession.subtopic?' — '+esc(activeStudySession.subtopic):''}</span>
+      <span style="color:var(--text-faint);"> · ${esc(activeStudySession.subjectLabel)} · ${esc(activeStudySession.sessionType)}</span>
+    </div>`:''}
     <div class="pomo-display mono" id="studySessionTimer">${fmtTime(pomo.seconds)}</div>
     <div class="sub" style="text-align:center;" id="studySessionTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
     <div class="pomo-controls">
       <button class="btn sm" id="studySessionStartBtn" data-action="pomoStart">${pomo.running?'Pause':'Start'}</button>
       <button class="btn ghost sm" data-action="pomoResetBtn">Reset</button>
     </div>
+    ${activeStudySession.active?`<div class="pomo-controls" style="margin-top:8px;">
+      <button class="btn ghost sm" data-action="openSwitchStudySession">🔁 Switch Subject</button>
+      <button class="btn ghost sm" data-action="endStudySession">⏹ End Session</button>
+    </div>`:''}
     <div style="margin-top:14px;">
       <div class="sub" style="margin-bottom:6px;">Presets</div>
       <div class="tabsrow">
@@ -1751,13 +1760,20 @@ function fmtHrsMin(hrs){const h=Math.floor(hrs);const m=Math.round((hrs-h)*60);r
 const POMO_LS_KEY='atlastrackit_pomo_state_v1';
 let pomo={seconds:25*60,running:false,mode:'Work',interval:null,targetEndTs:null,endTimeoutHandle:null};
 let studyTimer={seconds:0,running:false}; // tracks total elapsed "Work" seconds today, feeds the dashboard ring
+const SESSION_TYPES=['Study','Revision','Practice Questions','Mock Test'];
+// The Subject/Topic/Sub-topic/Session Type the current Pomodoro session is being
+// logged under. Set once via the Start Study Session dialog, then stays active
+// across every Work/Break cycle until the user ends the session or switches it —
+// this is what fixes study time being silently attributed to the wrong subject.
+let activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
 
 function savePomoState(){
   try{
     localStorage.setItem(POMO_LS_KEY,JSON.stringify({
       mode:pomo.mode,seconds:pomo.seconds,running:pomo.running,
       ts:Date.now(),targetEndTs:pomo.running?pomo.targetEndTs:null,
-      studySeconds:studyTimer.seconds,studyDate:todayStr()
+      studySeconds:studyTimer.seconds,studyDate:todayStr(),
+      activeStudySession
     }));
   }catch(e){/* localStorage unavailable */}
 }
@@ -1772,6 +1788,15 @@ function loadPomoState(){
     pomo.running=!!s.running;
     studyTimer.seconds=Number(s.studySeconds)||0;
     pomoSavedDate=s.studyDate||todayStr();
+    if(s.activeStudySession&&typeof s.activeStudySession==='object'){
+      activeStudySession=Object.assign({active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''},s.activeStudySession);
+    }
+    if(pomo.running&&pomo.mode==='Work'&&!activeStudySession.active){
+      // A Work-mode timer was running with no linked subject — this is exactly the
+      // state that used to get silently logged under the first subject in the list.
+      // Stop it here instead; the next Start click will require picking a subject.
+      pomo.running=false; studyTimer.running=false; pomo.targetEndTs=null;
+    }
     if(pomo.running){
       // Reconstruct the exact wall-clock moment this phase should end (prefer the
       // persisted value; fall back to deriving it from the old ts+seconds shape
@@ -1797,14 +1822,10 @@ function finalizeDay(oldDate){
   if(!oldDate||oldDate===todayStr())return;
   const alreadyArchived=(DB.history||[]).some(h=>h.date===oldDate);
   if(!alreadyArchived){
-    // flush any live, not-yet-logged Pomodoro time for the old day into a real session
-    // so it counts toward Total Study Hours / Streak / History
-    if(studyTimer.seconds>0){
-      DB.sessions.push({id:uid(),date:oldDate,start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
-        subject:subjectKeys()[0]||'',topic:'Pomodoro Session',subtopic:'',qSolved:0,qCorrect:0,qWrong:0,
-        source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
-        revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
-    }
+    // flush any live, not-yet-logged Pomodoro time for the old day into a real session,
+    // correctly attributed to whatever the active study session actually was — so it
+    // counts toward Total Study Hours / Streak / History under the right subject
+    if(studyTimer.seconds>0)flushActiveStudySegment(oldDate);
     const studyHours=hoursOn(oldDate);
     const target=effectiveTargetFor(oldDate);
     const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
@@ -1818,6 +1839,9 @@ function finalizeDay(oldDate){
   // Reset today's live counters whenever a new day has been detected — this must run
   // every time, independent of the archive-duplication guard above, otherwise a leftover
   // live Pomodoro counter from oldDate can survive and get added into today's progress.
+  // A new calendar day is also a natural session boundary, so the active study
+  // session ends here too — the next Pomodoro will ask for Subject/Topic again.
+  activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
   studyTimer.seconds=0; studyTimer.running=false;
   stopAlarm(); clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); pomo.targetEndTs=null;
   savePomoState(); scheduleSave();
@@ -1943,6 +1967,80 @@ function pomoTick(){
   if(pomo.seconds<=0){ pomoPhaseEnd(); return; }
   updateStudySessionUI();
   savePomoState();
+}
+// Sets the active Subject/Topic/Sub-topic/Session Type context and remembers it
+// as the default for next time — called once when a study session starts (or
+// when switching mid-session), never repeatedly for every Pomodoro/break cycle.
+function beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType){
+  activeStudySession={active:true,subjectKey,subjectLabel:subjLabel(subjectKey),topicId,topicName,subtopic,sessionType,startedAt:new Date().toISOString()};
+  DB.meta.lastSessionSubjectKey=subjectKey; DB.meta.lastSessionTopicId=topicId; DB.meta.lastSessionTopicName=topicName;
+  DB.meta.lastSessionSubtopic=subtopic; DB.meta.lastSessionType=sessionType;
+  scheduleSave(); savePomoState();
+}
+// Logs everything accumulated in studyTimer.seconds as one correctly-categorized
+// DB.sessions record (Subject/Topic/Sub-topic/Session Type/start/end/date), then
+// clears the bucket. Called when a session ends, switches, or on a day rollover —
+// never per-Pomodoro, so one continuous study session stays one log entry.
+// dateOverride lets a day-rollover flush log under the day the time was actually
+// earned, rather than the new "today".
+function flushActiveStudySegment(dateOverride){
+  if(studyTimer.seconds<=0)return;
+  const hours=+(studyTimer.seconds/3600).toFixed(4);
+  const endDate=new Date();
+  const startDate=activeStudySession.startedAt?new Date(activeStudySession.startedAt):new Date(endDate.getTime()-studyTimer.seconds*1000);
+  const pad=n=>String(n).padStart(2,'0');
+  const fmtHM=dt=>`${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const sessionType=activeStudySession.sessionType||'Study';
+  DB.sessions.push({
+    id:uid(),date:dateOverride||todayStr(),start:fmtHM(startDate),end:fmtHM(endDate),hours,
+    subject:activeStudySession.subjectKey||subjectKeys()[0]||'',
+    topic:activeStudySession.topicName||'Pomodoro Session',
+    subtopic:activeStudySession.subtopic||'',
+    qSolved:0,qCorrect:0,qWrong:0,
+    source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
+    revisionDone:sessionType==='Revision',mockDone:sessionType==='Mock Test',
+    wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true,sessionType
+  });
+  // Feed the same hours into the topic's tracked time so Subjects/Analytics (which
+  // read topic.timeSpent) reflect real Pomodoro study, not only manual entries.
+  if(activeStudySession.subjectKey&&activeStudySession.topicId&&DB.subjects[activeStudySession.subjectKey]){
+    const topic=DB.subjects[activeStudySession.subjectKey].topics.find(x=>x.id===activeStudySession.topicId);
+    if(topic)topic.timeSpent=+((Number(topic.timeSpent)||0)+hours).toFixed(2);
+  }
+  studyTimer.seconds=0;
+  activeStudySession.startedAt=new Date().toISOString(); // fresh start for whatever segment comes next
+  scheduleSave(); savePomoState();
+}
+// The "Start Study Session" / "Switch Subject" dialog — same form either way,
+// asked once per session rather than before every Pomodoro. Pre-fills the last
+// used Subject/Topic/Sub-topic/Session Type (or the current session's, when
+// switching) so the user can just confirm or tweak instead of retyping.
+function openStudySessionModal(opts){
+  opts=opts||{};
+  const isSwitch=opts.mode==='switch';
+  const keys=subjectKeys();
+  if(!keys.length){ alert('Add a subject first (Study → Subjects) before starting a study session.'); return; }
+  const defaultKey=(opts.subjectKey&&DB.subjects[opts.subjectKey])?opts.subjectKey:((DB.meta.lastSessionSubjectKey&&DB.subjects[DB.meta.lastSessionSubjectKey])?DB.meta.lastSessionSubjectKey:keys[0]);
+  const defaultTopicId=opts.topicId!==undefined?opts.topicId:(DB.meta.lastSessionTopicId||'');
+  const defaultSubtopic=opts.subtopic!==undefined?opts.subtopic:(DB.meta.lastSessionSubtopic||'');
+  const defaultType=opts.sessionType||DB.meta.lastSessionType||'Study';
+  openModal(`<h3>${isSwitch?'🔁 Switch Subject / Session':'🎯 Start Study Session'}</h3>
+  <p class="sub" style="margin:0 0 10px;">${isSwitch?"Time so far will be logged under the current topic first, then the timer keeps running under the new one.":"This stays active through every Pomodoro and break until you end or switch it — no need to re-enter it each cycle."}</p>
+  <div class="formgrid" style="grid-template-columns:1fr;">
+    <label>Subject
+      <select id="ss_subject" data-action="subjectFieldChange" data-prefix="ss">
+        ${keys.map(k=>`<option value="${k}" ${k===defaultKey?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
+      </select>
+    </label>
+    <label>Topic <span id="ss_topic_wrap">${topicFieldHtml(defaultKey,'ss',defaultTopicId)}</span></label>
+    <label>Sub-topic (optional) <input type="text" id="ss_subtopic" placeholder="e.g. Prime Factorization" value="${esc(defaultSubtopic)}"></label>
+    <label>Session Type
+      <select id="ss_type">
+        ${SESSION_TYPES.map(t=>`<option value="${esc(t)}" ${t===defaultType?'selected':''}>${esc(t)}</option>`).join('')}
+      </select>
+    </label>
+  </div>
+  <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="${isSwitch?'confirmSwitchStudySession':'confirmStartStudySession'}">${isSwitch?'Switch & Continue':'Start'}</button></div>`);
 }
 function pomoStartPause(){
   stopAlarm(); // interacting with the timer is one of the ways to silence the alarm
@@ -2507,10 +2605,52 @@ function handleAction(action,btn){
   }
   if(action==='deleteVocab'){DB.notes.vocab=DB.notes.vocab.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
   /* ---- Study Session (Pomodoro) controls ---- */
-  if(action==='pomoStart'){ pomoStartPause(); return; }
+  if(action==='pomoStart'){
+    if(!pomo.running&&!activeStudySession.active){ openStudySessionModal(); return; } // ask once, before the first Pomodoro of a new session
+    pomoStartPause(); return;
+  }
   if(action==='pomoResetBtn'){
     if(!confirm('Reset the current Study Session timer?'))return;
     pomoReset(); return;
+  }
+  if(action==='openSwitchStudySession'){
+    if(!activeStudySession.active){ openStudySessionModal(); return; }
+    openStudySessionModal({mode:'switch',subjectKey:activeStudySession.subjectKey,topicId:activeStudySession.topicId,subtopic:activeStudySession.subtopic,sessionType:activeStudySession.sessionType});
+    return;
+  }
+  if(action==='confirmStartStudySession'){
+    const subjectKey=document.getElementById('ss_subject').value;
+    const {topicId,topicName}=readTopicField('ss',subjectKey);
+    if(!topicName){alert('Please choose or enter a topic to study.'); return;}
+    const subtopic=document.getElementById('ss_subtopic').value.trim();
+    const sessionType=document.getElementById('ss_type').value;
+    beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType);
+    closeModal();
+    pomoStartPause(); // context is set — now actually start the timer
+    render();
+    return;
+  }
+  if(action==='confirmSwitchStudySession'){
+    const subjectKey=document.getElementById('ss_subject').value;
+    const {topicId,topicName}=readTopicField('ss',subjectKey);
+    if(!topicName){alert('Please choose or enter a topic to study.'); return;}
+    const subtopic=document.getElementById('ss_subtopic').value.trim();
+    const sessionType=document.getElementById('ss_type').value;
+    syncPomoFromClock(); // capture the very latest elapsed time before logging it
+    flushActiveStudySegment(); // log time-so-far under the OLD subject/topic before switching
+    beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType);
+    closeModal(); render();
+    return;
+  }
+  if(action==='endStudySession'){
+    if(!activeStudySession.active)return;
+    if(!confirm('End the current study session? Time so far will be logged under '+activeStudySession.subjectLabel+' · '+activeStudySession.topicName+'.'))return;
+    syncPomoFromClock(); // capture the very latest elapsed time before logging it
+    flushActiveStudySegment();
+    activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
+    pomoReset();
+    savePomoState(); render();
+    return;
   }
   if(action==='setPomoPreset'){
     DB.meta.pomoWork=Number(d.work); DB.meta.pomoBreak=Number(d.break);
