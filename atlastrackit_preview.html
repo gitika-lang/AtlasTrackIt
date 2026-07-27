@@ -286,7 +286,8 @@ html.dark .atlas-bubble code,html.dark .atlas-bubble pre{background:rgba(255,255
 </div>
 <div id="sidebarOverlay"></div>
 <div id="modalRoot"></div>
-<script>/* ================= DATA MODEL ================= */
+<script>
+/* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
 const todayStr = () => {
@@ -404,6 +405,7 @@ async function loadDB(){
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
   checkDayRollover();
+  checkWeeklyRollover();
   checkScheduledRevisionReminders();
   render();
   maybeShowNamePrompt();
@@ -413,7 +415,7 @@ async function loadDB(){
     pomoScheduleEndTimeout();
   }
   clearInterval(dayRollcheckInterval);
-  dayRollcheckInterval=setInterval(()=>{checkDayRollover();checkScheduledRevisionReminders();},30000);
+  dayRollcheckInterval=setInterval(()=>{checkDayRollover();checkWeeklyRollover();checkScheduledRevisionReminders();},30000);
 }
 let dayRollcheckInterval=null;
 
@@ -613,7 +615,7 @@ const TABS=[
 let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
   study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
-  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
+  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'weekly',label:'Weekly Report',ic:'📆'},{key:'achievements',label:'Achievements',ic:'🏅'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
 };
 let currentTab='dashboard';
@@ -665,6 +667,7 @@ function renderGoalsPage(){
   if(sub==='goals')content=renderGoals();
   else if(sub==='habits')content=renderHabits();
   else if(sub==='reviews')content=renderReviews();
+  else if(sub==='weekly')content=renderWeeklyPage();
   else if(sub==='achievements')content=`<div class="section-title"><h2>Achievements</h2><span class="hint">Unlocked as you hit milestones</span></div>${renderBadges()}`;
   return subnavHtml('goals')+content;
 }
@@ -1750,6 +1753,143 @@ Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabus
   `;
 }
 
+/* ================= WEEKLY STUDY PLAN / WEEKLY ANALYTICS =================
+   Monday–Sunday weekly summary, built on the same primitives as the daily
+   History archive (hoursOn/questionsOn/effectiveTargetFor). Reports are
+   generated live for the current (in-progress) week, and auto-saved into
+   DB.weeklyReports once a week has actually finished, via the same
+   day-rollover heartbeat used for checkDayRollover — so old weeks stay
+   viewable even as DB.sessions keeps growing. ---- */
+function weekStartOf(dateStr){
+  const d=new Date(dateStr);
+  const diff=(d.getDay()+6)%7; // days since Monday (getDay: 0=Sun..6=Sat)
+  d.setDate(d.getDate()-diff);
+  return d.toISOString().slice(0,10);
+}
+function weekDatesFrom(weekStartStr){
+  return [...Array(7)].map((_,i)=>{const d=new Date(weekStartStr);d.setDate(d.getDate()+i);return d.toISOString().slice(0,10);});
+}
+function buildWeeklyStats(weekStartStr){
+  const days=weekDatesFrom(weekStartStr);
+  const today=todayStr();
+  const dailyBreakdown=days.map(dt=>{
+    const hours=hoursOn(dt), questions=questionsOn(dt), target=effectiveTargetFor(dt);
+    return {date:dt,hours,questions,target,goalPct:target?Math.min(100,hours/target*100):0,isFuture:dt>today};
+  });
+  const pastDays=dailyBreakdown.filter(d=>!d.isFuture);
+  const subjSet=new Set();
+  DB.sessions.forEach(s=>{if(days.includes(s.date))subjSet.add(s.subject);});
+  const studiedDays=pastDays.filter(d=>d.hours>0);
+  return {
+    weekStart:weekStartStr, weekEnd:days[6], dailyBreakdown,
+    hours:dailyBreakdown.reduce((a,b)=>a+b.hours,0),
+    questions:dailyBreakdown.reduce((a,b)=>a+b.questions,0),
+    subjectsStudied:[...subjSet].map(k=>subjLabel(k)),
+    goalCompletionPct:pastDays.length?pastDays.reduce((a,b)=>a+b.goalPct,0)/pastDays.length:0,
+    consistencyPct:pastDays.length?studiedDays.length/pastDays.length*100:0,
+    bestDay:studiedDays.length?studiedDays.reduce((a,b)=>b.hours>a.hours?b:a):null,
+    weakestDay:pastDays.length?pastDays.reduce((a,b)=>b.hours<a.hours?b:a):null
+  };
+}
+function weeklyInsights(stats,prevReport){
+  const out=[];
+  if(stats.consistencyPct>=85)out.push('Strong consistency this week — you studied almost every day.');
+  else if(stats.consistencyPct<50)out.push('You studied on fewer than half the days this week — consistency needs work.');
+  if(stats.weakestDay&&stats.weakestDay.hours===0)out.push(`${stats.weakestDay.date} had no study logged.`);
+  const neglected=subjectKeys().filter(k=>!stats.subjectsStudied.includes(subjLabel(k)));
+  if(neglected.length)out.push(`Not touched this week: ${neglected.map(k=>subjLabel(k)).join(', ')}.`);
+  if(prevReport){
+    const hDiff=stats.hours-prevReport.hours;
+    if(Math.abs(hDiff)>=0.5)out.push(`Study hours ${hDiff>0?'up':'down'} ${Math.abs(hDiff).toFixed(1)}h vs last week.`);
+    const qDiff=stats.questions-prevReport.questions;
+    if(qDiff!==0)out.push(`Questions solved ${qDiff>0?'up':'down'} by ${Math.abs(qDiff)} vs last week.`);
+  }
+  if(!out.length)out.push('No notable patterns this week — keep the pace steady.');
+  return out;
+}
+function buildFullWeeklyReport(weekStartStr){
+  const stats=buildWeeklyStats(weekStartStr);
+  const prevWeekStart=weekStartOf(new Date(new Date(weekStartStr).getTime()-86400000).toISOString().slice(0,10));
+  const prevReport=(DB.weeklyReports||[]).find(r=>r.weekStart===prevWeekStart);
+  const comparedToPrev=prevReport?{hoursDiff:+(stats.hours-prevReport.hours).toFixed(2),questionsDiff:stats.questions-prevReport.questions,goalCompletionDiff:+(stats.goalCompletionPct-prevReport.goalCompletionPct).toFixed(1)}:null;
+  return {weekStart:stats.weekStart,weekEnd:stats.weekEnd,dailyBreakdown:stats.dailyBreakdown,
+    hours:+stats.hours.toFixed(2),questions:stats.questions,subjectsStudied:stats.subjectsStudied,
+    goalCompletionPct:+stats.goalCompletionPct.toFixed(1),consistencyPct:+stats.consistencyPct.toFixed(1),
+    bestDay:stats.bestDay,weakestDay:stats.weakestDay,comparedToPrev,insights:weeklyInsights(stats,prevReport)};
+}
+// Auto-generates and saves a report for the week that just ended, keyed by
+// weekStart so old weeks remain viewable even as new sessions get logged.
+function generateWeeklyReport(weekStartStr){
+  const report=Object.assign({id:uid(),generatedAt:new Date().toISOString()},buildFullWeeklyReport(weekStartStr));
+  DB.weeklyReports=(DB.weeklyReports||[]).filter(r=>r.weekStart!==weekStartStr);
+  DB.weeklyReports.push(report);
+  DB.weeklyReports.sort((a,b)=>b.weekStart.localeCompare(a.weekStart));
+  if(DB.weeklyReports.length>104)DB.weeklyReports=DB.weeklyReports.slice(0,104);
+  scheduleSave();
+  return report;
+}
+// Runs alongside checkDayRollover: once the calendar has moved into a new
+// week, save a report for the week that just finished.
+function checkWeeklyRollover(){
+  const curWeekStart=weekStartOf(todayStr());
+  const last=DB.meta.lastWeeklyReportCheck;
+  if(last&&last!==curWeekStart){
+    generateWeeklyReport(last);
+    DB.meta.lastWeeklyReportCheck=curWeekStart;
+    scheduleSave();
+  }else if(!last){
+    DB.meta.lastWeeklyReportCheck=curWeekStart;
+    scheduleSave();
+  }
+}
+function renderWeeklyReportBody(r){
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const cmp=r.comparedToPrev;
+  return `
+  <div class="grid g3">
+    <div class="card stat"><div class="label">Hours Studied</div><div class="value">${r.hours.toFixed(1)}h</div>${cmp?`<div class="sub">${cmp.hoursDiff>=0?'+':''}${cmp.hoursDiff.toFixed(1)}h vs last week</div>`:''}</div>
+    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${r.questions}</div>${cmp?`<div class="sub">${cmp.questionsDiff>=0?'+':''}${cmp.questionsDiff} vs last week</div>`:''}</div>
+    <div class="card stat"><div class="label">Goal Completion</div><div class="value">${r.goalCompletionPct.toFixed(0)}%</div>${cmp?`<div class="sub">${cmp.goalCompletionDiff>=0?'+':''}${cmp.goalCompletionDiff.toFixed(0)}% vs last week</div>`:''}</div>
+  </div>
+  <div class="grid g2" style="margin-top:10px;">
+    <div class="card stat"><div class="label">Weekly Consistency</div><div class="value">${r.consistencyPct.toFixed(0)}%</div></div>
+    <div class="card stat"><div class="label">Subjects Studied</div><div class="value" style="font-size:14px;">${r.subjectsStudied.length?esc(r.subjectsStudied.join(', ')):'None yet'}</div></div>
+  </div>
+  <div class="card" style="margin-top:10px;overflow-x:auto;">
+    <div class="label" style="margin-bottom:8px;">Daily Breakdown (${r.weekStart} → ${r.weekEnd})</div>
+    <table><thead><tr><th>Day</th><th>Date</th><th>Hours</th><th>Questions</th><th>Goal %</th></tr></thead><tbody>
+    ${r.dailyBreakdown.map((d,i)=>`<tr${d.isFuture?' style="opacity:.4;"':''}><td>${dayNames[i]}</td><td>${d.date}</td><td>${d.hours.toFixed(1)}</td><td>${d.questions}</td><td>${d.goalPct.toFixed(0)}%</td></tr>`).join('')}
+    </tbody></table>
+  </div>
+  <div class="grid g2" style="margin-top:10px;">
+    <div class="card"><div class="label">Best Day</div><div class="sub" style="margin-top:6px;">${r.bestDay?esc(r.bestDay.date)+' — '+r.bestDay.hours.toFixed(1)+'h':'Not enough data yet'}</div></div>
+    <div class="card"><div class="label">Weakest Day</div><div class="sub" style="margin-top:6px;">${r.weakestDay?esc(r.weakestDay.date)+' — '+r.weakestDay.hours.toFixed(1)+'h':'Not enough data yet'}</div></div>
+  </div>
+  <div class="section-title"><h2>Weekly Insights</h2></div>
+  <div class="card">${r.insights.map(i=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">💡 ${esc(i)}</div>`).join('')}</div>`;
+}
+function renderWeeklyPast(){
+  const reports=(DB.weeklyReports||[]).slice().sort((a,b)=>b.weekStart.localeCompare(a.weekStart));
+  return `<div class="section-title"><h2>Past Weekly Reports</h2><span class="hint">${reports.length} saved</span></div>
+  <div class="card" style="overflow-x:auto;">
+  ${reports.length===0?'<div class="emptystate">No past weekly reports yet — one saves automatically once a week finishes.</div>':`
+  <table><thead><tr><th>Week</th><th>Hours</th><th>Questions</th><th>Goal %</th><th>Consistency</th><th></th></tr></thead><tbody>
+  ${reports.map(r=>`<tr><td>${r.weekStart} → ${r.weekEnd}</td><td>${r.hours.toFixed(1)}h</td><td>${r.questions}</td><td>${r.goalCompletionPct.toFixed(0)}%</td><td>${r.consistencyPct.toFixed(0)}%</td>
+  <td><button class="btn ghost sm" data-action="viewWeeklyReport" data-id="${r.id}">View</button></td></tr>`).join('')}
+  </tbody></table>`}
+  </div>`;
+}
+function renderWeeklyPage(){
+  const live=buildFullWeeklyReport(weekStartOf(todayStr()));
+  return `<div class="section-title"><h2>This Week</h2><span class="hint">${live.weekStart} → ${live.weekEnd} · in progress</span></div>
+  <div class="card" style="margin-bottom:10px;">
+    <button class="btn sm" data-action="saveWeeklyReportNow">💾 Save Snapshot Now</button>
+    <span class="sub" style="margin-left:8px;">This week finalizes and archives automatically once it ends — this just saves a snapshot early if you want one.</span>
+  </div>
+  ${renderWeeklyReportBody(live)}
+  ${renderWeeklyPast()}`;
+}
+
 /* ================= STUDY NOTES (quick notes + formulas + vocab) ================= */
 function ensureExtrasTemp(){if(!formTemp.formula)formTemp.formula={text:''}; if(!formTemp.vocab)formTemp.vocab={word:'',meaning:''};}
 function renderStudyNotes(){
@@ -2285,6 +2425,19 @@ function handleAction(action,btn){
     const val=(document.getElementById('profileNameInput').value||'').trim();
     DB.profile.name=val.slice(0,40); scheduleSave(); render(); return;
   }
+  if(action==='saveWeeklyReportNow'){
+    generateWeeklyReport(weekStartOf(todayStr()));
+    render();
+    return;
+  }
+  if(action==='viewWeeklyReport'){
+    const r=(DB.weeklyReports||[]).find(x=>x.id===d.id);
+    if(!r)return;
+    openModal(`<h3>Weekly Report — ${esc(r.weekStart)} → ${esc(r.weekEnd)}</h3>
+    <div style="max-height:65vh;overflow:auto;">${renderWeeklyReportBody(r)}</div>
+    <div class="row" style="margin-top:12px;"><button class="btn ghost" data-action="closeModal">Close</button></div>`);
+    return;
+  }
   if(action==='openHistory'){
     const rows=(DB.history||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     openModal(`<h3>📅 Study History</h3>
@@ -2747,6 +2900,7 @@ function afterRenderHooks(){
 
 /* ================= INIT ================= */
 loadDB();
+
 </script>
 </body>
 </html>
