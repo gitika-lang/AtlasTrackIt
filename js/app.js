@@ -81,7 +81,7 @@ function defaultState(){
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr(),
       lastSessionSubjectKey:'',lastSessionTopicId:'',lastSessionTopicName:'',lastSessionSubtopic:'',lastSessionType:'Study'},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[],
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[], dismissedRevisions:[],
     profile:{name:''}
   };
 }
@@ -103,6 +103,7 @@ async function loadDB(){
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
       DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
       DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
+      DB.dismissedRevisions=Array.isArray(parsed.dismissedRevisions)?parsed.dismissedRevisions:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       DB.profile=Object.assign({name:''},parsed.profile||{});
       // backfill any new syllabus topics not present (safe merge)
@@ -160,6 +161,7 @@ function importDataFromFile(input){
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
     DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
     DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
+    DB.dismissedRevisions=Array.isArray(parsed.dismissedRevisions)?parsed.dismissedRevisions:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
     DB.profile=Object.assign({name:''},parsed.profile||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
@@ -246,13 +248,16 @@ function mockHigh(){if(!DB.mocks.length)return 0;return Math.max(...DB.mocks.map
 function habitScore(dateStr){const h=DB.habits[dateStr];if(!h)return 0;const done=HABITS.filter(x=>h[x]).length;return done/HABITS.length*100;}
 function revisionQueue(){
   const intervals=[1,7,16,35,90];
+  const dismissed=DB.dismissedRevisions||[];
   const out=[];
   allTopics().forEach(t=>{
     if(t.status==='Completed'||t.status==='Revised'){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
+        const revNum=t.revisions+1;
+        if(dismissed.some(x=>x.topicId===t.id&&x.revNum===revNum))return; // user deleted this specific reminder — will resurface once revisions actually advances
         const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
-        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:localDateStr(due),revNum:t.revisions+1,topicId:t.id});
+        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:localDateStr(due),revNum,topicId:t.id});
       }
     }
   });
@@ -985,7 +990,7 @@ function renderScheduledRevisionsSection(){
 }
 function normalizeQueueRow(r){
   return {name:r.name,subject:r.subject,revNum:'Rev '+r.revNum,due:r.due,
-    actionHtml:`<button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button>`};
+    actionHtml:`<button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button> <button class="icon-only" data-action="dismissAutoRevision" data-topic="${r.topicId}" data-revnum="${r.revNum}" title="Delete this reminder">🗑</button>`};
 }
 function normalizeScheduledRow(s){
   return {name:s.topicName+(s.subtopic?' — '+s.subtopic:''),subject:s.subjectLabel||'—',
@@ -2345,6 +2350,15 @@ function handleAction(action,btn){
   if(action==='deleteCustomRevision'){
     if(!confirm('Remove this revision reminder?'))return;
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
+    scheduleSave(); render(); return;
+  }
+  // Dismisses one auto-suggested spaced-repetition reminder (Rev N for this
+  // topic). It stays hidden only for that specific revision number — once the
+  // topic is actually marked revised, revisions advances and the next
+  // reminder (Rev N+1) is unaffected and will still show up as normal.
+  if(action==='dismissAutoRevision'){
+    DB.dismissedRevisions=DB.dismissedRevisions||[];
+    DB.dismissedRevisions.push({topicId:d.topic,revNum:Number(d.revnum)});
     scheduleSave(); render(); return;
   }
   /* ---- Scheduled Revisions: planned in advance (Subject + Topic + date/time + note) ---- */
