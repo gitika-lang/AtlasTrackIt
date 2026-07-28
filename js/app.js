@@ -8,6 +8,18 @@ const todayStr = () => {
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+// Formats any Date object as a local-timezone YYYY-MM-DD string (same logic as
+// todayStr, generalized to any date). Using d.toISOString().slice(0,10) instead
+// converts to UTC first, which silently rolls the date back a day for part of
+// the early morning in timezones ahead of UTC (e.g. IST) — that mismatch was
+// why a revision due "today" could also show under "Tomorrow", and something
+// scheduled for "tomorrow" could spill into "Next 7 Days".
+const localDateStr = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Storage adapter: uses the Claude artifact window.storage API when running
@@ -195,7 +207,7 @@ function currentStreak(){
   // allow today to be empty without breaking streak calc from yesterday
   let cursor=new Date(todayStr());
   if(!days.has(todayStr())){cursor.setDate(cursor.getDate()-1);}
-  while(days.has(cursor.toISOString().slice(0,10))){streak++;cursor.setDate(cursor.getDate()-1);}
+  while(days.has(localDateStr(cursor))){streak++;cursor.setDate(cursor.getDate()-1);}
   return streak;
 }
 function longestStreak(){
@@ -240,7 +252,7 @@ function revisionQueue(){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
         const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
-        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
+        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:localDateStr(due),revNum:t.revisions+1,topicId:t.id});
       }
     }
   });
@@ -303,7 +315,7 @@ function dailyRecommendations(){
     const caPct=subjectStats('currentAffairs').pct;
     if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
   }
-  const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===t.toISOString().slice(0,10);});
+  const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===localDateStr(t);});
   if(dueTomorrow.length)out.push(`Tomorrow prioritize revising ${dueTomorrow[0].name}.`);
   else{
     const weakest=allTopics().filter(t=>t.status!=='Completed'&&t.status!=='Revised').sort((a,b)=>a.confidence-b.confidence)[0];
@@ -326,8 +338,8 @@ const TABS=[
 ];
 let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
-  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
-  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'weekly',label:'Weekly Report',ic:'📆'},{key:'achievements',label:'Achievements',ic:'🏅'}],
+  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
+  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'weekly',label:'Weekly Report',ic:'📆'},{key:'achievements',label:'Achievements',ic:'🏅'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
 };
 let currentTab='dashboard';
@@ -368,7 +380,6 @@ function renderStudyPage(){
   let content='';
   if(sub==='subjects')content=renderSubjects();
   else if(sub==='log')content=renderLog();
-  else if(sub==='notes')content=renderStudyNotes();
   else if(sub==='analytics')content=renderAnalytics();
   else if(sub==='history')content=renderHistoryArchive();
   return subnavHtml('study')+content;
@@ -377,8 +388,6 @@ function renderGoalsPage(){
   const sub=currentSubtab.goals;
   let content='';
   if(sub==='goals')content=renderGoals();
-  else if(sub==='habits')content=renderHabits();
-  else if(sub==='reviews')content=renderReviews();
   else if(sub==='weekly')content=renderWeeklyPage();
   else if(sub==='achievements')content=`<div class="section-title"><h2>Achievements</h2><span class="hint">Unlocked as you hit milestones</span></div>${renderBadges()}`;
   return subnavHtml('goals')+content;
@@ -821,7 +830,7 @@ function renderDashboard(){
   `;
 }
 function renderStudyHistoryCard(){
-  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})[0];
+  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return localDateStr(d);})[0];
   const yEntry=(DB.history||[]).find(h=>h.date===y);
   return `
     <div class="card">
@@ -996,8 +1005,8 @@ function normalizeCustomRow(c){
 function renderRevision(){
   const q=revisionQueue();
   const today=todayStr();
-  const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
-  const next7=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=localDateStr(tmr);
+  const next7=localDateStr(new Date(Date.now()+7*86400000));
   const scheduled=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled');
   const legacy=DB.customRevisions||[];
   const groups={
@@ -1217,7 +1226,7 @@ function renderGoals(){
 function renderHabits(){
   const today=todayStr();
   const h=DB.habits[today]||{};
-  const last7=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return d.toISOString().slice(0,10);}).reverse();
+  const last7=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return localDateStr(d);}).reverse();
   const weeklyAvg=last7.reduce((a,d)=>a+habitScore(d),0)/7;
   return `
   <div class="grid g2">
@@ -1386,7 +1395,7 @@ function renderErrors(){
 
 /* ================= ANALYTICS ================= */
 function renderAnalytics(){
-  const days=[...Array(91)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(90-i));return d.toISOString().slice(0,10);});
+  const days=[...Array(91)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(90-i));return localDateStr(d);});
   const maxH=Math.max(1,...days.map(d=>hoursOn(d)));
   const p=paceMeter();
   return `
@@ -1481,13 +1490,13 @@ Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabus
    day-rollover heartbeat used for checkDayRollover — so old weeks stay
    viewable even as DB.sessions keeps growing. ---- */
 function weekStartOf(dateStr){
-  const d=new Date(dateStr);
+  const d=new Date(dateStr+'T00:00:00');
   const diff=(d.getDay()+6)%7; // days since Monday (getDay: 0=Sun..6=Sat)
   d.setDate(d.getDate()-diff);
-  return d.toISOString().slice(0,10);
+  return localDateStr(d);
 }
 function weekDatesFrom(weekStartStr){
-  return [...Array(7)].map((_,i)=>{const d=new Date(weekStartStr);d.setDate(d.getDate()+i);return d.toISOString().slice(0,10);});
+  return [...Array(7)].map((_,i)=>{const d=new Date(weekStartStr+'T00:00:00');d.setDate(d.getDate()+i);return localDateStr(d);});
 }
 function buildWeeklyStats(weekStartStr){
   const days=weekDatesFrom(weekStartStr);
@@ -1529,7 +1538,7 @@ function weeklyInsights(stats,prevReport){
 }
 function buildFullWeeklyReport(weekStartStr){
   const stats=buildWeeklyStats(weekStartStr);
-  const prevWeekStart=weekStartOf(new Date(new Date(weekStartStr).getTime()-86400000).toISOString().slice(0,10));
+  const prevWeekStart=weekStartOf(localDateStr(new Date(new Date(weekStartStr+'T00:00:00').getTime()-86400000)));
   const prevReport=(DB.weeklyReports||[]).find(r=>r.weekStart===prevWeekStart);
   const comparedToPrev=prevReport?{hoursDiff:+(stats.hours-prevReport.hours).toFixed(2),questionsDiff:stats.questions-prevReport.questions,goalCompletionDiff:+(stats.goalCompletionPct-prevReport.goalCompletionPct).toFixed(1)}:null;
   return {weekStart:stats.weekStart,weekEnd:stats.weekEnd,dailyBreakdown:stats.dailyBreakdown,
@@ -1863,12 +1872,26 @@ function checkDayRollover(){
   }
 }
 let pomoAlarmCtx=null, pomoAlarmOscillators=[], pomoAlarmStopTimeout=null;
+// Browsers only let an AudioContext produce sound if it was created/resumed during
+// a real user gesture (a click). The alarm itself always fires later from a
+// background setTimeout with no gesture of its own, so creating a fresh
+// AudioContext right there (as this used to do) starts it 'suspended' and it
+// never actually plays — especially after the tab has sat idle through a whole
+// session. Fix: unlock ONE context during a genuine click (see pomoStartPause)
+// and keep reusing that same instance for every alarm from then on.
+function ensurePomoAudioUnlocked(){
+  try{
+    if(!pomoAlarmCtx)pomoAlarmCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(pomoAlarmCtx.state==='suspended')pomoAlarmCtx.resume().catch(()=>{});
+  }catch(e){/* Web Audio not available */}
+}
 function playAlarm(){
   if(!DB.meta.pomoSound)return;
   stopAlarm(); // never let two alarms overlap
   try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    pomoAlarmCtx=ctx;
+    ensurePomoAudioUnlocked(); // safety net in case Start was never clicked as a real gesture (e.g. restored running state)
+    const ctx=pomoAlarmCtx;
+    if(!ctx)return;
     const totalSeconds=5, beepLen=0.35, gap=0.22;
     let t=ctx.currentTime;
     const end=t+totalSeconds;
@@ -1890,7 +1913,9 @@ function stopAlarm(){
   if(pomoAlarmStopTimeout){clearTimeout(pomoAlarmStopTimeout); pomoAlarmStopTimeout=null;}
   pomoAlarmOscillators.forEach(o=>{try{o.stop();}catch(e){/* already stopped */}});
   pomoAlarmOscillators=[];
-  if(pomoAlarmCtx){try{pomoAlarmCtx.close();}catch(e){/* already closed */} pomoAlarmCtx=null;}
+  // pomoAlarmCtx is intentionally kept open/alive here (not closed) so it stays
+  // reusable for the next alarm — closing and recreating it every time was
+  // exactly what forced each new alarm to start from an unlocked 'suspended' state.
 }
 function notifySessionEnd(nextMode){
   if(!DB.meta.pomoNotify)return;
@@ -2044,6 +2069,7 @@ function openStudySessionModal(opts){
 }
 function pomoStartPause(){
   stopAlarm(); // interacting with the timer is one of the ways to silence the alarm
+  ensurePomoAudioUnlocked(); // must happen inside this real click so the alarm can play later, from a background timer with no gesture of its own
   pomo.running=!pomo.running;
   if(pomo.running){
     if(pomo.mode==='Work')studyTimer.running=true;
