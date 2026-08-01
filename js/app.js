@@ -79,7 +79,7 @@ function defaultState(){
   return {
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr(),
-      lastSessionSubjectKey:'',lastSessionTopicId:'',lastSessionTopicName:'',lastSessionSubtopic:'',lastSessionType:'Study'},
+      lastSessionSubjectKey:'',lastSessionTopicId:'',lastSessionTopicName:'',lastSessionSubtopic:'',lastSessionType:'Study',lastWeeklyReportCheck:''},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[], dismissedRevisions:[],
     profile:{name:''}
@@ -1494,6 +1494,11 @@ Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabus
    DB.weeklyReports once a week has actually finished, via the same
    day-rollover heartbeat used for checkDayRollover — so old weeks stay
    viewable even as DB.sessions keeps growing. ---- */
+// Week runs Monday → Sunday (Sunday is the LAST day of the week, not the first).
+// weekStartOf(todayStr()) returns the same Monday for every day Mon..Sun, so the
+// value only changes the instant the calendar flips from Sunday to Monday —
+// that's exactly when checkWeeklyRollover (below) detects a new week and
+// finalizes the one that just ended, with Sunday's study time already counted.
 function weekStartOf(dateStr){
   const d=new Date(dateStr+'T00:00:00');
   const diff=(d.getDay()+6)%7; // days since Monday (getDay: 0=Sun..6=Sat)
