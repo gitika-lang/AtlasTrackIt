@@ -185,69 +185,11 @@ select,input[type=text],input[type=number],input[type=date],input[type=time],tex
   .topbar{gap:10px;}
 }
 
-/* ================= ATLAS AI ================= */
-.atlas-page{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start;}
-.atlas-main{display:flex;flex-direction:column;gap:14px;min-width:0;}
-.atlas-side{display:flex;flex-direction:column;gap:14px;}
-.atlas-greet{display:flex;flex-direction:column;gap:6px;}
-.atlas-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--accent-700);background:var(--accent-50);border:1px solid var(--accent-100);border-radius:99px;padding:4px 12px;width:fit-content;}
-.atlas-greeting{margin:0;font-size:22px;}
-.atlas-welcome{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(160deg,var(--accent-50),var(--card));border-color:var(--accent-100);}
-.atlas-welcome-icon{width:44px;height:44px;border-radius:13px;background:linear-gradient(150deg,var(--accent-500),var(--accent-900));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 14px -4px var(--accent-700);}
-.atlas-chips{display:flex;flex-wrap:wrap;gap:8px;}
-.atlas-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);border-radius:99px;padding:8px 14px;font-size:12.5px;font-weight:600;transition:border-color .15s,color .15s,background .15s,transform .1s;}
-.atlas-chip:hover{border-color:var(--accent-500);color:var(--accent-600);background:var(--accent-50);transform:translateY(-1px);}
-.atlas-chip:active{transform:scale(.97);}
-.atlas-chatcard{display:flex;flex-direction:column;padding:0;overflow:hidden;height:440px;}
-.atlas-chatbody{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;}
-.atlas-empty{margin:auto;text-align:center;color:var(--text-faint);max-width:320px;}
-.atlas-empty-ic{font-size:34px;margin-bottom:10px;}
-.atlas-empty p{font-size:13px;font-weight:700;color:var(--text-muted);margin:0 0 6px;}
-.atlas-empty span{font-size:12px;line-height:1.6;}
-.atlas-msg{display:flex;animation:atlasFadeIn .2s ease;}
-.atlas-msg.user{justify-content:flex-end;}
-.atlas-msg.assistant{justify-content:flex-start;}
-.atlas-bubble{max-width:78%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;}
-.atlas-msg.user .atlas-bubble{background:var(--accent-600);color:#fff;border-bottom-right-radius:4px;}
-.atlas-msg.assistant .atlas-bubble{background:var(--bg-soft);color:var(--text);border-bottom-left-radius:4px;}
-.atlas-bubble.atlas-error{background:var(--red-bg);color:var(--red);}
-.atlas-typing{display:flex;gap:4px;align-items:center;padding:12px 14px;}
-.atlas-typing span{width:6px;height:6px;border-radius:50%;background:var(--text-faint);animation:atlasTypingDot 1.1s infinite ease-in-out;}
-.atlas-typing span:nth-child(2){animation-delay:.15s;}
-.atlas-typing span:nth-child(3){animation-delay:.3s;}
-@keyframes atlasTypingDot{0%,60%,100%{opacity:.3;transform:translateY(0);}30%{opacity:1;transform:translateY(-3px);}}
-.atlas-bubble h1,.atlas-bubble h2,.atlas-bubble h3{font-family:var(--font-display);margin:10px 0 6px;font-size:14px;}
-.atlas-bubble h1:first-child,.atlas-bubble h2:first-child,.atlas-bubble h3:first-child{margin-top:0;}
-.atlas-bubble p{margin:0 0 8px;}
-.atlas-bubble p:last-child{margin-bottom:0;}
-.atlas-bubble ul,.atlas-bubble ol{margin:4px 0 8px;padding-left:18px;}
-.atlas-bubble li{margin:2px 0;}
-.atlas-bubble strong{font-weight:700;}
-.atlas-bubble code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:5px;font-family:var(--font-mono);font-size:11.5px;}
-.atlas-bubble pre{background:rgba(0,0,0,.08);padding:10px 12px;border-radius:10px;overflow-x:auto;margin:6px 0;}
-.atlas-bubble pre code{background:none;padding:0;}
-.atlas-bubble table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;}
-.atlas-bubble th,.atlas-bubble td{border:1px solid var(--border);padding:5px 7px;text-align:left;}
-html.dark .atlas-bubble code,html.dark .atlas-bubble pre{background:rgba(255,255,255,.08);}
-@keyframes atlasFadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
-.atlas-inputrow{display:flex;gap:8px;align-items:flex-end;padding:12px 14px;border-top:1px solid var(--border);background:var(--card);}
-.atlas-inputrow textarea{flex:1;resize:none;max-height:160px;min-height:38px;border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.5;}
-.atlas-inputrow textarea:disabled{opacity:.6;}
-.atlas-sendbtn{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;padding:0;}
-.atlas-sendbtn:disabled{opacity:.5;cursor:not-allowed;}
-.atlas-future-list{display:flex;flex-direction:column;gap:9px;}
-.atlas-future-item{font-size:12.5px;color:var(--text-muted);display:flex;gap:8px;align-items:center;}
-@media(max-width:900px){.atlas-page{grid-template-columns:1fr;}}
-@media(max-width:700px){.atlas-chatcard{height:60vh;}}
-
 /* ================= SUBJECT DRAG CUES ================= */
 [data-subj-drag]{transition:opacity .15s,transform .15s;}
 [data-subj-drag][draggable="true"]:active{opacity:.7;}
-
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
 <body>
 <div id="shell">
@@ -290,25 +232,7 @@ html.dark .atlas-bubble code,html.dark .atlas-bubble pre{background:rgba(255,255
 /* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
-const todayStr = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-// Formats any Date object as a local-timezone YYYY-MM-DD string (same logic as
-// todayStr, generalized to any date). Using d.toISOString().slice(0,10) instead
-// converts to UTC first, which silently rolls the date back a day for part of
-// the early morning in timezones ahead of UTC (e.g. IST) — that mismatch was
-// why a revision due "today" could also show under "Tomorrow", and something
-// scheduled for "tomorrow" could spill into "Next 7 Days".
-const localDateStr = (d) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const todayStr=()=>new Date().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Storage adapter: uses the Claude artifact window.storage API when running
@@ -367,11 +291,9 @@ function defaultState(){
   Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
-      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false,lastActiveDate:todayStr(),
-      lastSessionSubjectKey:'',lastSessionTopicId:'',lastSessionTopicName:'',lastSessionSubtopic:'',lastSessionType:'Study',lastWeeklyReportCheck:''},
+      pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[], revisionLog:[], scheduledRevisions:[], dismissedRevisions:[],
-    profile:{name:''}
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
   };
 }
 let DB=defaultState();
@@ -390,11 +312,7 @@ async function loadDB(){
       DB.dailyTargets=parsed.dailyTargets||{};
       DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
-      DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
-      DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
-      DB.dismissedRevisions=Array.isArray(parsed.dismissedRevisions)?parsed.dismissedRevisions:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
-      DB.profile=Object.assign({name:''},parsed.profile||{});
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
         if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};
@@ -418,18 +336,15 @@ async function loadDB(){
   pomo.mode='Work';
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
+  sessionDate=pomoSavedDate||todayStr();
   checkDayRollover();
-  checkWeeklyRollover();
-  checkScheduledRevisionReminders();
   render();
-  maybeShowNamePrompt();
   if(pomo.running){
     studyTimer.running=(pomo.mode==='Work');
     pomo.interval=setInterval(pomoTick,1000);
-    pomoScheduleEndTimeout();
   }
   clearInterval(dayRollcheckInterval);
-  dayRollcheckInterval=setInterval(()=>{checkDayRollover();checkWeeklyRollover();checkScheduledRevisionReminders();},30000);
+  dayRollcheckInterval=setInterval(checkDayRollover,30000);
 }
 let dayRollcheckInterval=null;
 
@@ -448,11 +363,7 @@ function importDataFromFile(input){
     DB.dailyTargets=parsed.dailyTargets||{};
     DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
-    DB.revisionLog=Array.isArray(parsed.revisionLog)?parsed.revisionLog:[];
-    DB.scheduledRevisions=Array.isArray(parsed.scheduledRevisions)?parsed.scheduledRevisions:[];
-    DB.dismissedRevisions=Array.isArray(parsed.dismissedRevisions)?parsed.dismissedRevisions:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
-    DB.profile=Object.assign({name:''},parsed.profile||{});
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
       const s=DB.subjects[k];
@@ -466,13 +377,11 @@ function importDataFromFile(input){
     DB.subjectOrder=[...savedOrder,...missing];
     if(DB.meta.dark)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
     document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
-    stopAlarm(); clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
-    pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; pomo.targetEndTs=null; studyTimer.running=false;
+    clearInterval(pomo.interval);
+    pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; studyTimer.running=false;
     savePomoState();
     input.value='';
-    scheduleSave();
-    checkDayRollover();
-    render();
+    scheduleSave(); render();
   };
   reader.readAsText(file);
 }
@@ -498,7 +407,7 @@ function currentStreak(){
   // allow today to be empty without breaking streak calc from yesterday
   let cursor=new Date(todayStr());
   if(!days.has(todayStr())){cursor.setDate(cursor.getDate()-1);}
-  while(days.has(localDateStr(cursor))){streak++;cursor.setDate(cursor.getDate()-1);}
+  while(days.has(cursor.toISOString().slice(0,10))){streak++;cursor.setDate(cursor.getDate()-1);}
   return streak;
 }
 function longestStreak(){
@@ -537,16 +446,13 @@ function mockHigh(){if(!DB.mocks.length)return 0;return Math.max(...DB.mocks.map
 function habitScore(dateStr){const h=DB.habits[dateStr];if(!h)return 0;const done=HABITS.filter(x=>h[x]).length;return done/HABITS.length*100;}
 function revisionQueue(){
   const intervals=[1,7,16,35,90];
-  const dismissed=DB.dismissedRevisions||[];
   const out=[];
   allTopics().forEach(t=>{
     if(t.status==='Completed'||t.status==='Revised'){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
-        const revNum=t.revisions+1;
-        if(dismissed.some(x=>x.topicId===t.id&&x.revNum===revNum))return; // user deleted this specific reminder — will resurface once revisions actually advances
         const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
-        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:localDateStr(due),revNum,topicId:t.id});
+        out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
       }
     }
   });
@@ -609,7 +515,7 @@ function dailyRecommendations(){
     const caPct=subjectStats('currentAffairs').pct;
     if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
   }
-  const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===localDateStr(t);});
+  const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===t.toISOString().slice(0,10);});
   if(dueTomorrow.length)out.push(`Tomorrow prioritize revising ${dueTomorrow[0].name}.`);
   else{
     const weakest=allTopics().filter(t=>t.status!=='Completed'&&t.status!=='Revised').sort((a,b)=>a.confidence-b.confidence)[0];
@@ -627,13 +533,11 @@ const TABS=[
   {id:'study',label:'Study',ic:'📚'},
   {id:'goals',label:'Goals',ic:'🎯'},
   {id:'mocks',label:'Mocks',ic:'🧪'},
-  {id:'atlas',label:'Atlas AI',ic:'🤖'},
   {id:'settings',label:'Settings',ic:'⚙'}
 ];
-let atlasMessages=[]; // session-only Atlas AI chat log (UI-only, not persisted, no backend yet)
 const SUBTABS={
-  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'analytics',label:'Analytics',ic:'📊'},{key:'history',label:'History',ic:'🗂'}],
-  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'weekly',label:'Weekly Report',ic:'📆'},{key:'achievements',label:'Achievements',ic:'🏅'}],
+  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'}],
+  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
 };
 let currentTab='dashboard';
@@ -662,7 +566,6 @@ function render(){
   else if(currentTab==='study')view.innerHTML=renderStudyPage();
   else if(currentTab==='goals')view.innerHTML=renderGoalsPage();
   else if(currentTab==='mocks')view.innerHTML=renderMocksPage();
-  else if(currentTab==='atlas')view.innerHTML=renderAtlasPage();
   else if(currentTab==='settings')view.innerHTML=renderSettingsPage();
   afterRenderHooks();
   closeMobileSidebar();
@@ -674,15 +577,17 @@ function renderStudyPage(){
   let content='';
   if(sub==='subjects')content=renderSubjects();
   else if(sub==='log')content=renderLog();
+  else if(sub==='revision')content=renderRevision();
+  else if(sub==='notes')content=renderStudyNotes();
   else if(sub==='analytics')content=renderAnalytics();
-  else if(sub==='history')content=renderHistoryArchive();
   return subnavHtml('study')+content;
 }
 function renderGoalsPage(){
   const sub=currentSubtab.goals;
   let content='';
   if(sub==='goals')content=renderGoals();
-  else if(sub==='weekly')content=renderWeeklyPage();
+  else if(sub==='habits')content=renderHabits();
+  else if(sub==='reviews')content=renderReviews();
   else if(sub==='achievements')content=`<div class="section-title"><h2>Achievements</h2><span class="hint">Unlocked as you hit milestones</span></div>${renderBadges()}`;
   return subnavHtml('goals')+content;
 }
@@ -695,334 +600,27 @@ function renderMocksPage(){
   return subnavHtml('mocks')+content;
 }
 
-/* ================= ATLAS AI ================= */
-const ATLAS_CHIPS=[
-  ['📅','What should I study today?'],
-  ['📊','Analyze my last 15 days'],
-  ['📚','Which subjects are my weakest?'],
-  ['🧠',"Build today's study plan"],
-  ['📈','Am I on track?'],
-  ['🔥','Motivate me'],
-  ['📝','Make a revision plan'],
-  ['🎯','Improve my mock scores']
-];
-const ATLAS_FUTURE=['Daily Study Planning','Progress Analysis','Weak Topic Detection','Revision Scheduling','Mock Test Analysis','Personalized Recommendations','Smart Productivity Insights','Study Pattern Analysis'];
-let atlasWaiting=false; // true while a request to /api/atlas is in flight
-function atlasGreeting(){
-  const name=(DB.profile&&DB.profile.name)?DB.profile.name.trim():'';
-  if(!name)return 'Hello 👋';
-  const hour=new Date().getHours();
-  if(hour<12)return `Good Morning, ${esc(name)} 👋`;
-  if(hour<17)return `Good Afternoon, ${esc(name)} ☀️`;
-  return `Good Evening, ${esc(name)} 🌙`;
-}
-
-/* ---- ATLAS AI — data context builder ----
-   Figures out what the message is asking about and hands Gemini only that
-   slice of the student's data, instead of the whole database every turn.
-   Keeps token usage, cost and latency down and keeps answers grounded. */
-function atlasSnapshot(){
-  const r=examReadiness();
-  return {
-    studentName:(DB.profile&&DB.profile.name)||null,
-    streakDays:currentStreak(),
-    todayStudyHours:Number(todayStudyTime().toFixed(2)),
-    todayTargetHours:todayTarget(),
-    daysElapsed:daysElapsed(),
-    daysRemaining:daysRemaining(),
-    examReadiness:{score:Math.round(r.score),label:r.label}
-  };
-}
-function atlasSubjectDetail(key){
-  const st=subjectStats(key);
-  const topics=DB.subjects[key].topics;
-  return {
-    subject:subjLabel(key),
-    progressPct:Math.round(st.pct),
-    hoursSpent:Number(st.hrs.toFixed(1)),
-    totalTopics:st.total, completedTopics:st.completed, remainingTopics:st.remaining,
-    weakTopics:st.weak.slice(0,12), strongTopics:st.strong.slice(0,8),
-    pendingTopicNames:topics.filter(t=>t.status==='Not Started'||t.status==='In Progress').map(t=>t.name).slice(0,15)
-  };
-}
-function atlasAllSubjectsBrief(){
-  return subjectKeys().map(k=>{const st=subjectStats(k);return {subject:subjLabel(k),progressPct:Math.round(st.pct),weakTopicCount:st.weak.length};});
-}
-function atlasWeakTopics(limit=10){
-  return allTopics().filter(t=>t.confidence<=2&&t.status!=='Completed'&&t.status!=='Revised')
-    .sort((a,b)=>a.confidence-b.confidence).slice(0,limit)
-    .map(t=>({name:t.name,subject:subjLabel(t.subject),confidence:t.confidence,status:t.status}));
-}
-function atlasRevisionQueueBrief(limit=10){
-  const today=todayStr();
-  return revisionQueue().filter(r=>r.due<=today).slice(0,limit).map(r=>({name:r.name,subject:r.subject,due:r.due,revNum:r.revNum}));
-}
-function atlasRecentSessions(n=5,subjectKey){
-  let sess=DB.sessions.slice();
-  if(subjectKey)sess=sess.filter(s=>s.subject===subjectKey);
-  return sess.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,n)
-    .map(s=>({date:s.date,subject:subjLabel(s.subject),hours:Number(Number(s.hours||0).toFixed(2)),questions:s.qSolved||0,notes:(s.notes||'').slice(0,140)}));
-}
-function atlasMockBrief(n=5){
-  const sorted=DB.mocks.slice().sort((a,b)=>b.number-a.number);
-  return {count:DB.mocks.length, average:Math.round(mockAvg()), highest:mockHigh(),
-    recent:sorted.slice(0,n).map(m=>({number:m.number,score:m.score,weak:m.weak,strong:m.strong}))};
-}
-function atlasHistorySummary(){
-  const hist=DB.history||[];
-  if(!hist.length)return null;
-  const avgGoalPct=Math.round(hist.reduce((a,h)=>a+Number(h.goalPct||0),0)/hist.length);
-  const avgStudyHours=Number((hist.reduce((a,h)=>a+Number(h.studyHours||0),0)/hist.length).toFixed(1));
-  const missedTargetDays=hist.filter(h=>Number(h.goalPct||0)<100).length;
-  const subjPct=subjectKeys().map(k=>({subject:subjLabel(k),pct:Math.round(subjectStats(k).pct)})).sort((a,b)=>b.pct-a.pct);
-  return {daysTracked:hist.length, avgDailyGoalCompletionPct:avgGoalPct, avgDailyStudyHours:avgStudyHours,
-    missedTargetDays, strongestSubject:subjPct[0]?subjPct[0].subject:null,
-    weakestSubject:subjPct.length?subjPct[subjPct.length-1].subject:null};
-}
-function atlasWeeklyTrend(){
-  const weeks=[];
-  for(let i=0;i<4;i++){const to=i*7, from=to+7; weeks.push(Number((hoursSince(from)-hoursSince(to)).toFixed(1)));}
-  return weeks.reverse(); // oldest week first, most recent last
-}
-function atlasMatchSubjectKey(q){
-  return subjectKeys().find(k=>{
-    const label=subjLabel(k).toLowerCase();
-    return q.includes(label)||label.split(/[\s&/]+/).some(w=>w.length>3&&q.includes(w));
-  });
-}
-function buildAtlasContext(message){
-  const q=(message||'').toLowerCase();
-  const ctx={snapshot:atlasSnapshot()};
-  const matchedSubject=atlasMatchSubjectKey(q);
-  if(matchedSubject){
-    ctx.subjectFocus=atlasSubjectDetail(matchedSubject);
-    ctx.recentSessions=atlasRecentSessions(5,matchedSubject);
-    return ctx;
-  }
-  const wantsWeek=/\bweek|next 7|schedule|plan\b/.test(q);
-  const wantsMonth=/\bmonth|trend|analytics|performance|improv|overall progress\b/.test(q);
-  const wantsMock=/\bmock|test score|exam score\b/.test(q);
-  const wantsWeak=/\bweak|struggl|difficult|bad at\b/.test(q);
-  const wantsRevision=/\brevis/.test(q);
-  const wantsMotivate=/\bmotivat|discourag|tired|lazy|procrastinat\b/.test(q);
-  const wantsToday=/\btoday|now|right now|this morning|tonight\b/.test(q)||(!wantsWeek&&!wantsMonth&&!wantsMock&&!wantsRevision&&!wantsMotivate&&!wantsWeak);
-  if(wantsToday){
-    ctx.subjectsBrief=atlasAllSubjectsBrief();
-    ctx.weakTopics=atlasWeakTopics(8);
-    ctx.revisionDueToday=atlasRevisionQueueBrief(8);
-    ctx.recentSessions=atlasRecentSessions(3);
-  }
-  if(wantsWeek){
-    ctx.weeklyHoursTrend=atlasWeeklyTrend();
-    ctx.subjectsBrief=atlasAllSubjectsBrief();
-    ctx.weakTopics=atlasWeakTopics(10);
-    ctx.revisionQueue=atlasRevisionQueueBrief(10);
-  }
-  if(wantsMonth){
-    ctx.historySummary=atlasHistorySummary();
-    ctx.weeklyHoursTrend=atlasWeeklyTrend();
-    ctx.mocks=atlasMockBrief(5);
-    ctx.subjectsBrief=atlasAllSubjectsBrief();
-  }
-  if(wantsMock)ctx.mocks=atlasMockBrief(8);
-  if(wantsWeak){ctx.weakTopics=atlasWeakTopics(12); ctx.subjectsBrief=atlasAllSubjectsBrief();}
-  if(wantsRevision){ctx.revisionQueue=atlasRevisionQueueBrief(15); ctx.weakTopics=atlasWeakTopics(8);}
-  if(wantsMotivate){ctx.recentSessions=atlasRecentSessions(5); ctx.historySummary=atlasHistorySummary();}
-  return ctx;
-}
-
-/* ---- ATLAS AI — chat rendering ---- */
-function atlasRenderMarkdown(text){
-  try{
-    if(typeof marked!=='undefined'){
-      const raw=marked.parse(text,{breaks:true});
-      return (typeof DOMPurify!=='undefined')?DOMPurify.sanitize(raw):raw;
-    }
-  }catch(e){ /* fall through to plain escaped text */ }
-  return esc(text).replace(/\n/g,'<br>');
-}
-function atlasMessageHtml(m){
-  if(m.role==='pending'){
-    return `<div class="atlas-msg assistant"><div class="atlas-bubble atlas-typing"><span></span><span></span><span></span></div></div>`;
-  }
-  const html=m.role==='assistant'?atlasRenderMarkdown(m.text):esc(m.text);
-  return `<div class="atlas-msg ${m.role}"><div class="atlas-bubble${m.error?' atlas-error':''}">${html}</div></div>`;
-}
-function renderAtlasChatBody(){
-  if(!atlasMessages.length){
-    return `<div class="atlas-empty">
-      <div class="atlas-empty-ic">✨</div>
-      <p>Ask Atlas anything about your prep.</p>
-      <span>Atlas already knows your subjects, progress, revisions and mock scores — no need to explain your journey, just ask.</span>
-    </div>`;
-  }
-  return atlasMessages.map(atlasMessageHtml).join('');
-}
-function renderAtlasPage(){
-  return `
-  <div class="atlas-page">
-    <div class="atlas-main">
-      <div class="atlas-greet">
-        <span class="atlas-badge">🤖 Atlas</span>
-        <h2 class="atlas-greeting disp">${atlasGreeting()}</h2>
-      </div>
-      <div class="card atlas-welcome">
-        <div class="atlas-welcome-icon">🤖</div>
-        <div>
-          <h3 style="margin:0 0 4px;font-size:15px;">Atlas AI</h3>
-          <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted);font-weight:600;">Your personal AI study coach.</p>
-          <p style="margin:0;font-size:12.5px;color:var(--text-faint);line-height:1.6;">Atlas can analyze your study habits, revision history, subjects, mock tests and progress to help you study smarter.</p>
-        </div>
-      </div>
-      <div class="atlas-chips">
-        ${ATLAS_CHIPS.map(([ic,text])=>`<button class="atlas-chip" data-action="atlasChip" data-text="${esc(text)}"><span>${ic}</span>${esc(text)}</button>`).join('')}
-      </div>
-      <div class="card atlas-chatcard">
-        <div id="atlasChatBody" class="atlas-chatbody">${renderAtlasChatBody()}</div>
-        <div class="atlas-inputrow">
-          <textarea id="atlasInput" placeholder="Ask Atlas anything about your prep..." rows="1"${atlasWaiting?' disabled':''}></textarea>
-          <button class="btn atlas-sendbtn" data-action="atlasSend" title="Send"${atlasWaiting?' disabled':''}>➤</button>
-        </div>
-      </div>
-    </div>
-    <div class="atlas-side">
-      <div class="card">
-        <h3 style="margin:0 0 12px;font-size:14px;">Atlas Will Soon Help You With</h3>
-        <div class="atlas-future-list">
-          ${ATLAS_FUTURE.map(f=>`<div class="atlas-future-item">✓ ${esc(f)}</div>`).join('')}
-        </div>
-      </div>
-    </div>
-  </div>`;
-}
-function autosizeAtlasInput(ta){
-  ta.style.height='auto';
-  ta.style.height=Math.min(ta.scrollHeight,160)+'px';
-}
-function atlasSetSendDisabled(disabled){
-  const btn=document.querySelector('.atlas-sendbtn'); if(btn)btn.disabled=disabled;
-  const ta=document.getElementById('atlasInput'); if(ta)ta.disabled=disabled;
-}
-function atlasRefreshChatBody(scrollDown){
-  const body=document.getElementById('atlasChatBody');
-  if(!body)return;
-  body.innerHTML=renderAtlasChatBody();
-  if(scrollDown)body.scrollTop=body.scrollHeight;
-}
-async function atlasSendMessage(){
-  if(atlasWaiting)return;
-  const ta=document.getElementById('atlasInput');
-  if(!ta)return;
-  const val=ta.value.trim();
-  if(!val)return;
-  atlasMessages.push({role:'user',text:val});
-  ta.value=''; ta.style.height='auto';
-  atlasWaiting=true; atlasSetSendDisabled(true);
-  atlasMessages.push({role:'pending'});
-  atlasRefreshChatBody(true);
-  // Recent turns (excluding the pending placeholder) give Atlas short-term memory
-  // for this browser session, so follow-up questions stay in context.
-  const history=atlasMessages.filter(m=>m.role==='user'||m.role==='assistant').slice(0,-1).slice(-12);
-  try{
-    const context=buildAtlasContext(val);
-    const res=await fetch('/api/atlas',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:val,context,history})
-    });
-    let data=null;
-    try{data=await res.json();}catch(e){ /* non-JSON error body */ }
-    atlasMessages=atlasMessages.filter(m=>m.role!=='pending');
-    if(res.ok&&data&&data.reply){
-      atlasMessages.push({role:'assistant',text:data.reply});
-    }else{
-      atlasMessages.push({role:'assistant',text:(data&&data.error)||'Atlas is taking a short break right now. Please try again in a moment.',error:true});
-    }
-  }catch(e){
-    atlasMessages=atlasMessages.filter(m=>m.role!=='pending');
-    atlasMessages.push({role:'assistant',text:'Atlas is taking a short break right now. Please try again in a moment.',error:true});
-  }
-  atlasWaiting=false; atlasSetSendDisabled(false);
-  atlasRefreshChatBody(true);
-}
-
-/* ---- Scheduled Revisions: plan a future revision (Subject + Topic + date/time +
-   optional note), surfaced prominently on the Dashboard when due, with an optional
-   browser-notification reminder. Separate from the auto-generated spaced-repetition
-   queue and the quick freeform "+ Add Revision" reminder — this is planned in advance
-   and tracked through Scheduled → Completed/Skipped, and can be rescheduled. ---- */
-function scheduledRevisionDueTs(item){
-  const t=item.time?item.time:'00:00';
-  const ts=new Date(`${item.date}T${t}:00`).getTime();
-  return isNaN(ts)?null:ts;
-}
-function scheduledRevisionsDueToday(){
-  const today=todayStr();
-  return (DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled'&&s.date<=today)
-    .sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
-}
-// Builds the <option> list for a subject's tracked topics — shared by the
-// Topic dropdown in both the Schedule Revision and Add Revision modals (kept
-// as a function so it can be regenerated when the Subject select changes,
-// without a full page render()).
-function scheduleTopicOptionsHtml(subjectKey,selectedTopicId){
-  if(!subjectKey||!DB.subjects[subjectKey])return '';
-  return DB.subjects[subjectKey].topics.map(t=>`<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${esc(t.name)}</option>`).join('');
-}
-// Topic field for a given subject + a DOM id prefix (so the same component can
-// appear in more than one modal). If the subject has tracked topics, shows a
-// dropdown of them plus a "type manually" option that reveals a free-text
-// input — so a topic not yet in the list can still be entered even when a
-// real subject is selected. Falls back straight to free text for "Other" /
-// subjects with no topics yet.
-function topicFieldHtml(subjectKey,prefix,selectedTopicId){
-  if(subjectKey&&DB.subjects[subjectKey]&&DB.subjects[subjectKey].topics.length){
-    return `<select id="${prefix}_topic" data-action="topicSelectChange" data-prefix="${prefix}">
-      ${scheduleTopicOptionsHtml(subjectKey,selectedTopicId)}
-      <option value="__custom__">✎ Other / type manually…</option>
-    </select>
-    <input type="text" id="${prefix}_topic_custom" placeholder="Type topic name" style="display:none;margin-top:6px;">`;
-  }
-  return `<input type="text" id="${prefix}_topic_custom" placeholder="e.g. Percentage formulas, Chapter 5">`;
-}
-// Reads back whichever topic was actually selected/typed for a given prefix +
-// subject — used by both modals' save handlers.
-function readTopicField(prefix,subjectKey){
-  const select=document.getElementById(prefix+'_topic');
-  const custom=document.getElementById(prefix+'_topic_custom');
-  if(select&&select.value&&select.value!=='__custom__'){
-    const topic=(subjectKey&&DB.subjects[subjectKey])?DB.subjects[subjectKey].topics.find(x=>x.id===select.value):null;
-    return {topicId:select.value,topicName:topic?topic.name:''};
-  }
-  return {topicId:'',topicName:custom?custom.value.trim():''};
-}
-function notifyScheduledRevision(item){
-  if(!DB.meta.pomoNotify)return;
-  if(typeof Notification==='undefined')return;
-  if(!document.hidden)return; // consistent with the Pomodoro reminder: only interrupt when the tab isn't active
-  if(Notification.permission!=='granted')return; // see notifySessionEnd — can't request permission from a non-gesture context
-  const body=`${item.topicName}${item.subtopic?' — '+item.subtopic:''}${item.subjectLabel?' · '+item.subjectLabel:''} is due for revision.`;
-  new Notification('AtlasTrackIt — Revision Reminder',{body});
-}
-// Runs periodically (see dayRollcheckInterval) to fire a one-time reminder the
-// moment a scheduled revision becomes due — by date if no time was given, or by
-// the exact date+time otherwise. notifiedAt prevents repeat notifications.
-function checkScheduledRevisionReminders(){
-  const now=Date.now();
-  let changed=false;
-  (DB.scheduledRevisions||[]).forEach(item=>{
-    if(item.status!=='Scheduled'||item.notifiedAt)return;
-    const dueTs=scheduledRevisionDueTs(item);
-    if(dueTs!==null&&now>=dueTs){
-      notifyScheduledRevision(item);
-      item.notifiedAt=new Date().toISOString();
-      changed=true;
-    }
-  });
-  if(changed){scheduleSave(); if(currentTab==='dashboard')render();}
-}
-
 /* ================= DASHBOARD (daily home screen) ================= */
+function renderDueRevisionItems(dueToday){
+  const today=todayStr();
+  const customDue=(DB.customRevisions||[]).filter(c=>c.due<=today).sort((a,b)=>a.due.localeCompare(b.due));
+  const total=dueToday.length+customDue.length;
+  if(total===0)return '<div class="emptystate">Nothing due — great pacing.</div>';
+  const topicRows=dueToday.slice(0,10).map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+      <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
+      <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum}</span></span>
+    </label>
+  </div>`).join('');
+  const customRows=customDue.slice(0,10).map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+      <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
+      <span>${esc(c.text)} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
+    </label>
+    <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
+  </div>`).join('');
+  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}</div>`;
+}
 function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
@@ -1031,6 +629,7 @@ function renderDashboard(){
   const tasks=DB.tasks[today]||[];
   const doneCount=tasks.filter(t=>t.done).length;
   const taskPct=tasks.length?doneCount/tasks.length*100:0;
+  const dueToday=revisionQueue().filter(r=>r.due<=today);
   const quote=QUOTES[new Date().getDate()%QUOTES.length];
   return `
   <div class="grid g3">
@@ -1057,20 +656,22 @@ function renderDashboard(){
       <div class="label">Study Session</div>
       <span class="sub" id="studySessionMode">${pomo.mode==='Work'?'🎯 Study Session':'☕ Break'}</span>
     </div>
-    ${activeStudySession.active?`<div class="sub" style="margin:6px 0 0;font-size:12.5px;">
-      <span style="color:var(--accent-700);font-weight:700;">${esc(activeStudySession.topicName)}${activeStudySession.subtopic?' — '+esc(activeStudySession.subtopic):''}</span>
-      <span style="color:var(--text-faint);"> · ${esc(activeStudySession.subjectLabel)} · ${esc(activeStudySession.sessionType)}</span>
-    </div>`:''}
     <div class="pomo-display mono" id="studySessionTimer">${fmtTime(pomo.seconds)}</div>
     <div class="sub" style="text-align:center;" id="studySessionTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
+    <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:10px;margin-bottom:0;">
+      <label>Subject <select data-action="setPomoSubject" ${pomo.running?'disabled':''}>
+        <option value="">— none —</option>
+        ${subjectKeys().map(k=>`<option value="${k}" ${pomo.subjectKey===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
+      </select></label>
+      <label>Topic <select data-action="setPomoTopic" ${pomo.running||!pomo.subjectKey?'disabled':''}>
+        <option value="">— none —</option>
+        ${(DB.subjects[pomo.subjectKey]?.topics||[]).map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
+      </select></label>
+    </div>
     <div class="pomo-controls">
       <button class="btn sm" id="studySessionStartBtn" data-action="pomoStart">${pomo.running?'Pause':'Start'}</button>
       <button class="btn ghost sm" data-action="pomoResetBtn">Reset</button>
     </div>
-    ${activeStudySession.active?`<div class="pomo-controls" style="margin-top:8px;">
-      <button class="btn ghost sm" data-action="openSwitchStudySession">🔁 Switch Subject</button>
-      <button class="btn ghost sm" data-action="endStudySession">⏹ End Session</button>
-    </div>`:''}
     <div style="margin-top:14px;">
       <div class="sub" style="margin-bottom:6px;">Presets</div>
       <div class="tabsrow">
@@ -1105,6 +706,13 @@ function renderDashboard(){
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     <div class="card">
+      <div class="flexbetween" style="margin-bottom:8px;">
+        <div class="label">Due Revisions</div>
+        <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add Revision</button>
+      </div>
+      ${renderDueRevisionItems(dueToday)}
+    </div>
+    <div class="card">
       <div class="label" style="margin-bottom:10px;">Quick Progress Summary</div>
       <div class="grid g2" style="gap:10px;">
         <div class="sub">Syllabus<br><b style="color:var(--text);font-size:16px;">${syllabusPct().toFixed(0)}%</b></div>
@@ -1113,18 +721,17 @@ function renderDashboard(){
         <div class="sub">Total Hours<br><b style="color:var(--text);font-size:16px;">${totalHours().toFixed(1)}h</b></div>
       </div>
     </div>
-    ${renderStudyHistoryCard()}
   </div>
 
-  <div style="margin-top:14px;">
-    ${renderRevision()}
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    ${renderStudyHistoryCard()}
   </div>
 
   <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
   `;
 }
 function renderStudyHistoryCard(){
-  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return localDateStr(d);})[0];
+  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})[0];
   const yEntry=(DB.history||[]).find(h=>h.date===y);
   return `
     <div class="card">
@@ -1141,84 +748,6 @@ function renderStudyHistoryCard(){
         <div>• Revisions Completed: <b>${yEntry.revisionsCompleted}</b></div>
       </div>`:`<div class="emptystate">No data recorded for yesterday yet.</div>`}
     </div>`;
-}
-/* ---- History / Archive: completed daily tasks + completed revisions, kept
-   (not deleted) and organized by date with their original completion time ---- */
-function fmtClock(iso){
-  if(!iso)return '';
-  const d=new Date(iso);
-  if(isNaN(d.getTime()))return '';
-  let h=d.getHours(); const m=d.getMinutes().toString().padStart(2,'0');
-  const ap=h>=12?'PM':'AM'; h=h%12; if(h===0)h=12;
-  return `${h}:${m} ${ap}`;
-}
-function buildActivityArchive(){
-  const byDate={};
-  Object.keys(DB.tasks||{}).forEach(date=>{
-    (DB.tasks[date]||[]).filter(t=>t.done).forEach(t=>{
-      (byDate[date]=byDate[date]||[]).push({type:'task',text:t.text,completedAt:t.completedAt||''});
-    });
-  });
-  (DB.revisionLog||[]).forEach(r=>{
-    const kindTag=r.kind==='custom'?' · Custom':(r.kind==='scheduled'?' · Scheduled':'');
-    const label=r.name+(r.subject?' · '+r.subject:'')+(r.revNum?' · Rev '+r.revNum:'')+kindTag;
-    (byDate[r.date]=byDate[r.date]||[]).push({type:'revision',text:label,completedAt:r.completedAt||''});
-  });
-  return byDate;
-}
-// Today's Completion: completed-today count vs. everything still outstanding
-// today (pending tasks + revisions still due today across all three revision
-// sources), so the ratio reflects "today's plan" rather than a shrinking
-// denominator as items get completed.
-function todaysCompletionSummary(){
-  const today=todayStr();
-  const completedToday=(buildActivityArchive()[today]||[]).length;
-  const tasksLeft=(DB.tasks[today]||[]).filter(t=>!t.done).length;
-  const queueLeft=revisionQueue().filter(r=>r.due<=today).length;
-  const customLeft=(DB.customRevisions||[]).filter(c=>c.due<=today).length;
-  const scheduledLeft=scheduledRevisionsDueToday().length;
-  const outstanding=tasksLeft+queueLeft+customLeft+scheduledLeft;
-  const total=completedToday+outstanding;
-  const pct=total>0?Math.round(completedToday/total*100):0;
-  return {completedToday,total,pct};
-}
-function renderTodaysCompletionSummary(){
-  const {completedToday,total,pct}=todaysCompletionSummary();
-  if(total===0){
-    return `<div class="card" style="margin-bottom:14px;">
-      <div class="label" style="margin-bottom:4px;">Today's Completion</div>
-      <div class="emptystate" style="margin-top:4px;">Nothing planned or completed today yet.</div>
-    </div>`;
-  }
-  return `<div class="card" style="margin-bottom:14px;">
-    <div class="flexbetween" style="margin-bottom:8px;">
-      <div class="label">Today's Completion</div>
-      <span class="sub">${completedToday}/${total} completed</span>
-    </div>
-    <div class="bar"><span style="width:${pct}%"></span></div>
-    <div class="sub" style="margin-top:6px;">${pct}% of today's activities & revisions done</div>
-  </div>`;
-}
-function renderHistoryArchive(){
-  const byDate=buildActivityArchive();
-  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-  const header=`<div class="section-title"><h2>History / Archive</h2><span class="hint">Completed tasks & revisions — kept, not deleted, organized by date</span></div>`;
-  const summary=renderTodaysCompletionSummary();
-  if(!dates.length){
-    return header+summary+`<div class="emptystate">Nothing completed yet — finished daily tasks and completed revisions will show up here, grouped by the day you completed them.</div>`;
-  }
-  const sections=dates.map(date=>{
-    const items=byDate[date].slice().sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
-    const rows=items.map(it=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-      <span>${it.type==='task'?'✅':'🔁'} ${esc(it.text)}</span>
-      <span class="sub" style="color:var(--text-faint);white-space:nowrap;">${it.completedAt?fmtClock(it.completedAt):''}</span>
-    </div>`).join('');
-    return `<div class="card" style="margin-bottom:12px;">
-      <div class="flexbetween" style="margin-bottom:6px;"><div class="label">${esc(date)}</div><span class="sub">${items.length} completed</span></div>
-      ${rows}
-    </div>`;
-  }).join('');
-  return header+summary+sections;
 }
 function ringSVG(pct){
   const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
@@ -1245,78 +774,18 @@ function renderBadges(){
 }
 
 /* ================= REVISION CALENDAR ================= */
-function renderScheduledRevisionsSection(){
-  const items=(DB.scheduledRevisions||[]).slice().sort((a,b)=>{
-    if(a.status!==b.status){ const order={Scheduled:0,Skipped:1,Completed:2}; return (order[a.status]||0)-(order[b.status]||0); }
-    return (a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00'));
-  });
-  const statusPill=s=>({Scheduled:'inprogress',Completed:'completed',Skipped:'notstarted'}[s]||'notstarted');
-  return `<div class="section-title"><h2>Scheduled Revisions</h2><span class="hint">Plan a revision in advance, on top of the auto-generated queue below</span></div>
-  <div class="card" style="margin-bottom:10px;">
-    <button class="btn sm" data-action="openScheduleRevision">📅 Schedule Revision</button>
-  </div>
-  <div class="card" style="overflow-x:auto;">
-  ${items.length===0?'<div class="emptystate">Nothing scheduled yet — plan your next revision ahead of time.</div>':
-  `<table><thead><tr><th>Topic</th><th>Subject</th><th>Rev #</th><th>Date</th><th>Time</th><th>Note</th><th>Status</th><th></th></tr></thead><tbody>
-  ${items.map(s=>`<tr>
-    <td>${esc(s.topicName)}${s.subtopic?`<div class="sub" style="color:var(--text-faint);">${esc(s.subtopic)}</div>`:''}</td>
-    <td>${esc(s.subjectLabel||'—')}</td>
-    <td>${s.revNum?esc(String(s.revNum)):'—'}</td>
-    <td>${esc(s.date)}</td>
-    <td>${esc(s.time||'—')}</td>
-    <td class="notes-preview" title="${esc(s.note||'')}">${esc(s.note||'—')}</td>
-    <td><span class="pill ${statusPill(s.status)}">${s.status}</span></td>
-    <td style="white-space:nowrap;">
-      ${s.status==='Scheduled'?`<button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Done</button>
-      <button class="btn ghost sm" data-action="skipScheduledRevision" data-id="${s.id}">Skip</button>
-      <button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>`:''}
-      ${s.status==='Skipped'?`<button class="icon-only" data-action="openRescheduleRevision" data-id="${s.id}" title="Reschedule">🔁</button>`:''}
-      <button class="icon-only" data-action="deleteScheduledRevision" data-id="${s.id}" title="Delete">🗑</button>
-    </td>
-  </tr>`).join('')}
-  </tbody></table>`}
-  </div>`;
-}
-function normalizeQueueRow(r){
-  return {name:r.name,subject:r.subject,revNum:'Rev '+r.revNum,due:r.due,
-    actionHtml:`<button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button> <button class="icon-only" data-action="dismissAutoRevision" data-topic="${r.topicId}" data-revnum="${r.revNum}" title="Delete this reminder">🗑</button>`};
-}
-function normalizeScheduledRow(s){
-  return {name:s.topicName+(s.subtopic?' — '+s.subtopic:''),subject:s.subjectLabel||'—',
-    revNum:s.revNum?('Rev '+esc(String(s.revNum))):'<span class="tag med">Scheduled</span>',
-    due:s.date+(s.time?' · '+esc(s.time):''),
-    actionHtml:`<button class="btn sm" data-action="markScheduledRevisionDone" data-id="${s.id}">Mark Completed</button>`};
-}
-// Legacy quick reminders created before Scheduled Revision became the single
-// add-flow — kept visible here (rather than a separate widget) so nothing a
-// user already entered disappears.
-function normalizeCustomRow(c){
-  return {name:c.text+(c.subtopic?' — '+c.subtopic:''),subject:c.subject||'—',
-    revNum:c.revNum?('Rev '+esc(String(c.revNum))):'<span class="tag med">Reminder</span>',
-    due:c.due,
-    actionHtml:`<button class="btn sm" data-action="completeCustomRevision" data-id="${c.id}">Mark Completed</button> <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Delete">🗑</button>`};
-}
 function renderRevision(){
   const q=revisionQueue();
   const today=todayStr();
-  const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=localDateStr(tmr);
-  const next7=localDateStr(new Date(Date.now()+7*86400000));
-  const scheduled=(DB.scheduledRevisions||[]).filter(s=>s.status==='Scheduled');
-  const legacy=DB.customRevisions||[];
-  const groups={
-    Today:[...q.filter(r=>r.due<=today).map(normalizeQueueRow), ...scheduled.filter(s=>s.date<=today).map(normalizeScheduledRow), ...legacy.filter(c=>c.due<=today).map(normalizeCustomRow)],
-    Tomorrow:[...q.filter(r=>r.due===tomorrowStr).map(normalizeQueueRow), ...scheduled.filter(s=>s.date===tomorrowStr).map(normalizeScheduledRow), ...legacy.filter(c=>c.due===tomorrowStr).map(normalizeCustomRow)],
-    'Next 7 Days':[...q.filter(r=>r.due>tomorrowStr&&r.due<=next7).map(normalizeQueueRow),
-      ...scheduled.filter(s=>s.date>tomorrowStr&&s.date<=next7).map(normalizeScheduledRow),
-      ...legacy.filter(c=>c.due>tomorrowStr&&c.due<=next7).map(normalizeCustomRow)]
-  };
-  return renderScheduledRevisionsSection()+Object.keys(groups).map(g=>{
+  const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
+  const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tomorrowStr),'Next 7 Days':q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10))};
+  return Object.keys(groups).map(g=>{
     const items=groups[g];
     return `<div class="section-title"><h2>${g}</h2><span class="hint">${items.length} due</span></div>
     <div class="card">${items.length===0?'<div class="emptystate">Nothing here.</div>':
     `<table><thead><tr><th>Topic</th><th>Subject</th><th>Revision #</th><th>Due</th><th></th></tr></thead><tbody>
-    ${items.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.subject)}</td><td>${r.revNum}</td><td>${r.due}</td>
-    <td>${r.actionHtml}</td></tr>`).join('')}
+    ${items.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.subject)}</td><td>Rev ${r.revNum}</td><td>${r.due}</td>
+    <td><button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button></td></tr>`).join('')}
     </tbody></table>`}</div>`;
   }).join('');
 }
@@ -1478,8 +947,14 @@ function renderReadinessCard(){
   </div>`;
 }
 function renderUpcomingDeadlines(){
-  const upcoming=DB.goals.filter(g=>g.deadline&&g.status!=='Completed').sort((a,b)=>a.deadline.localeCompare(b.deadline)).slice(0,6);
-  return `<div class="card">${upcoming.length===0?'<div class="emptystate">No upcoming deadlines set.</div>':
+  const now=Date.now();
+  const in24h=now+24*3600*1000;
+  const upcoming=DB.goals.filter(g=>{
+    if(!g.deadline||g.status==='Completed')return false;
+    const dueBy=new Date(g.deadline+'T23:59:59').getTime(); // goal is due by the end of its deadline day
+    return dueBy>=now&&dueBy<=in24h;
+  }).sort((a,b)=>a.deadline.localeCompare(b.deadline));
+  return `<div class="card">${upcoming.length===0?'<div class="emptystate">No deadlines in the next 24 hours.</div>':
   upcoming.map(g=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>${esc(g.text)} <span class="sub" style="color:var(--text-faint);">· ${g.type}</span></span><span class="tag ${g.priority==='High'?'high':g.priority==='Low'?'low':'med'}">${g.deadline}</span></div>`).join('')}
   </div>`;
 }
@@ -1489,7 +964,7 @@ function renderGoals(){
   return `
   <div class="section-title"><h2>Exam Readiness</h2></div>
   ${renderReadinessCard()}
-  <div class="section-title"><h2>Upcoming Deadlines</h2><span class="hint">Calendar view of your goals</span></div>
+  <div class="section-title"><h2>Upcoming Deadlines</h2><span class="hint">Due in the next 24 hours</span></div>
   ${renderUpcomingDeadlines()}
   <div class="section-title"><h2>Add a Target</h2></div>
   <div class="card">
@@ -1520,7 +995,7 @@ function renderGoals(){
 function renderHabits(){
   const today=todayStr();
   const h=DB.habits[today]||{};
-  const last7=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return localDateStr(d);}).reverse();
+  const last7=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return d.toISOString().slice(0,10);}).reverse();
   const weeklyAvg=last7.reduce((a,d)=>a+habitScore(d),0)/7;
   return `
   <div class="grid g2">
@@ -1689,7 +1164,7 @@ function renderErrors(){
 
 /* ================= ANALYTICS ================= */
 function renderAnalytics(){
-  const days=[...Array(91)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(90-i));return localDateStr(d);});
+  const days=[...Array(91)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(90-i));return d.toISOString().slice(0,10);});
   const maxH=Math.max(1,...days.map(d=>hoursOn(d)));
   const p=paceMeter();
   return `
@@ -1741,6 +1216,12 @@ function renderReviews(){
   const sortedSubj=Object.keys(bySubjWeek).sort((a,b)=>bySubjWeek[b]-bySubjWeek[a]);
   const strongest=sortedSubj[0]?subjLabel(sortedSubj[0]):'—';
   const weakest=neglected[0]?subjLabel(neglected[0]):(sortedSubj[sortedSubj.length-1]?subjLabel(sortedSubj[sortedSubj.length-1]):'—');
+  const weekDaysStudied=new Set(weekSessions.map(s=>s.date)).size;
+  const weekQuestions=weekSessions.reduce((a,b)=>a+Number(b.qSolved||0),0);
+  const weekRevisions=allTopics().filter(t=>t.lastRevisionDate&&new Date(t.lastRevisionDate)>=weekAgo).length;
+  const last7Days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10);});
+  const weekTargetTotal=last7Days.reduce((a,d)=>a+effectiveTargetFor(d),0);
+  const weekGoalPct=weekTargetTotal?Math.min(100,Math.round(last7Days.reduce((a,d)=>a+hoursOn(d),0)/weekTargetTotal*100)):0;
 
   const monthAgo=new Date(); monthAgo.setDate(now.getDate()-30);
   const monthSessions=DB.sessions.filter(s=>new Date(s.date)>=monthAgo);
@@ -1758,13 +1239,31 @@ Weak areas to watch: ${weak.length?weak.join(', '):'None flagged'}
 Missed goals: ${DB.goals.filter(g=>g.type==='Daily'&&g.status!=='Completed').length} daily goal(s) still open
 Suggestion: ${th<todayTarget()?"You are below today's target — consider a short focused session before bed.":"Target met — use spare time for revision."}</div>
 
-  <div class="section-title"><h2>Weekly Review</h2></div>
-  <div class="card review-block">Total hours (7d): ${weekHours.toFixed(1)}h
-Subjects neglected: ${neglected.length?neglected.map(k=>subjLabel(k)).join(', '):'None — solid coverage'}
-Strongest subject this week: ${strongest}
-Weakest / most neglected: ${weakest}
-Consistency score: ${(new Set(weekSessions.map(s=>s.date)).size/7*100).toFixed(0)}%
-Recommendation: ${neglected.length?'Rotate in '+subjLabel(neglected[0])+' before Sunday.':'Maintain current rotation, add a mock test.'}</div>
+  <div class="section-title"><h2>Weekly Report</h2><span class="hint">Last 7 days</span></div>
+  <div class="grid" style="grid-template-columns:repeat(5,1fr);">
+    <div class="card stat"><div class="label">Total Study Hours</div><div class="value">${weekHours.toFixed(1)}h</div></div>
+    <div class="card stat"><div class="label">Study Days</div><div class="value">${weekDaysStudied} / 7</div></div>
+    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${weekQuestions}</div></div>
+    <div class="card stat"><div class="label">Revisions Completed</div><div class="value">${weekRevisions}</div></div>
+    <div class="card stat"><div class="label">Weekly Goal</div><div class="value">${weekGoalPct}%</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Subject Focus</div>
+      <div class="sub" style="line-height:1.9;font-size:12.5px;">
+        Strongest subject this week: <b style="color:var(--text);">${strongest}</b><br>
+        Weakest / most neglected: <b style="color:var(--text);">${weakest}</b><br>
+        Subjects neglected: <b style="color:var(--text);">${neglected.length?neglected.map(k=>subjLabel(k)).join(', '):'None — solid coverage'}</b>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Consistency & Recommendation</div>
+      <div class="sub" style="line-height:1.9;font-size:12.5px;">
+        Consistency score: <b style="color:var(--text);">${(weekDaysStudied/7*100).toFixed(0)}%</b><br>
+        Recommendation: ${neglected.length?'Rotate in '+subjLabel(neglected[0])+' before Sunday.':'Maintain current rotation, add a mock test.'}
+      </div>
+    </div>
+  </div>
 
   <div class="section-title"><h2>Monthly Review</h2></div>
   <div class="card review-block">Study hours (30d): ${monthHours.toFixed(1)}h
@@ -1774,148 +1273,6 @@ Mock tests this month: ${monthMocks.length}${monthMocks.length?', avg score '+(m
 Top achievement: ${totalHours()>=100?'Crossed 100 hours total':'Building the habit foundation'}
 Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabusPct()/10)*10+10)}%</div>
   `;
-}
-
-/* ================= WEEKLY STUDY PLAN / WEEKLY ANALYTICS =================
-   Monday–Sunday weekly summary, built on the same primitives as the daily
-   History archive (hoursOn/questionsOn/effectiveTargetFor). Reports are
-   generated live for the current (in-progress) week, and auto-saved into
-   DB.weeklyReports once a week has actually finished, via the same
-   day-rollover heartbeat used for checkDayRollover — so old weeks stay
-   viewable even as DB.sessions keeps growing. ---- */
-// Week runs Monday → Sunday (Sunday is the LAST day of the week, not the first).
-// weekStartOf(todayStr()) returns the same Monday for every day Mon..Sun, so the
-// value only changes the instant the calendar flips from Sunday to Monday —
-// that's exactly when checkWeeklyRollover (below) detects a new week and
-// finalizes the one that just ended, with Sunday's study time already counted.
-function weekStartOf(dateStr){
-  const d=new Date(dateStr+'T00:00:00');
-  const diff=(d.getDay()+6)%7; // days since Monday (getDay: 0=Sun..6=Sat)
-  d.setDate(d.getDate()-diff);
-  return localDateStr(d);
-}
-function weekDatesFrom(weekStartStr){
-  return [...Array(7)].map((_,i)=>{const d=new Date(weekStartStr+'T00:00:00');d.setDate(d.getDate()+i);return localDateStr(d);});
-}
-function buildWeeklyStats(weekStartStr){
-  const days=weekDatesFrom(weekStartStr);
-  const today=todayStr();
-  const dailyBreakdown=days.map(dt=>{
-    const hours=hoursOn(dt), questions=questionsOn(dt), target=effectiveTargetFor(dt);
-    return {date:dt,hours,questions,target,goalPct:target?Math.min(100,hours/target*100):0,isFuture:dt>today};
-  });
-  const pastDays=dailyBreakdown.filter(d=>!d.isFuture);
-  const subjSet=new Set();
-  DB.sessions.forEach(s=>{if(days.includes(s.date))subjSet.add(s.subject);});
-  const studiedDays=pastDays.filter(d=>d.hours>0);
-  return {
-    weekStart:weekStartStr, weekEnd:days[6], dailyBreakdown,
-    hours:dailyBreakdown.reduce((a,b)=>a+b.hours,0),
-    questions:dailyBreakdown.reduce((a,b)=>a+b.questions,0),
-    subjectsStudied:[...subjSet].map(k=>subjLabel(k)),
-    goalCompletionPct:pastDays.length?pastDays.reduce((a,b)=>a+b.goalPct,0)/pastDays.length:0,
-    consistencyPct:pastDays.length?studiedDays.length/pastDays.length*100:0,
-    bestDay:studiedDays.length?studiedDays.reduce((a,b)=>b.hours>a.hours?b:a):null,
-    weakestDay:pastDays.length?pastDays.reduce((a,b)=>b.hours<a.hours?b:a):null
-  };
-}
-function weeklyInsights(stats,prevReport){
-  const out=[];
-  if(stats.consistencyPct>=85)out.push('Strong consistency this week — you studied almost every day.');
-  else if(stats.consistencyPct<50)out.push('You studied on fewer than half the days this week — consistency needs work.');
-  if(stats.weakestDay&&stats.weakestDay.hours===0)out.push(`${stats.weakestDay.date} had no study logged.`);
-  const neglected=subjectKeys().filter(k=>!stats.subjectsStudied.includes(subjLabel(k)));
-  if(neglected.length)out.push(`Not touched this week: ${neglected.map(k=>subjLabel(k)).join(', ')}.`);
-  if(prevReport){
-    const hDiff=stats.hours-prevReport.hours;
-    if(Math.abs(hDiff)>=0.5)out.push(`Study hours ${hDiff>0?'up':'down'} ${Math.abs(hDiff).toFixed(1)}h vs last week.`);
-    const qDiff=stats.questions-prevReport.questions;
-    if(qDiff!==0)out.push(`Questions solved ${qDiff>0?'up':'down'} by ${Math.abs(qDiff)} vs last week.`);
-  }
-  if(!out.length)out.push('No notable patterns this week — keep the pace steady.');
-  return out;
-}
-function buildFullWeeklyReport(weekStartStr){
-  const stats=buildWeeklyStats(weekStartStr);
-  const prevWeekStart=weekStartOf(localDateStr(new Date(new Date(weekStartStr+'T00:00:00').getTime()-86400000)));
-  const prevReport=(DB.weeklyReports||[]).find(r=>r.weekStart===prevWeekStart);
-  const comparedToPrev=prevReport?{hoursDiff:+(stats.hours-prevReport.hours).toFixed(2),questionsDiff:stats.questions-prevReport.questions,goalCompletionDiff:+(stats.goalCompletionPct-prevReport.goalCompletionPct).toFixed(1)}:null;
-  return {weekStart:stats.weekStart,weekEnd:stats.weekEnd,dailyBreakdown:stats.dailyBreakdown,
-    hours:+stats.hours.toFixed(2),questions:stats.questions,subjectsStudied:stats.subjectsStudied,
-    goalCompletionPct:+stats.goalCompletionPct.toFixed(1),consistencyPct:+stats.consistencyPct.toFixed(1),
-    bestDay:stats.bestDay,weakestDay:stats.weakestDay,comparedToPrev,insights:weeklyInsights(stats,prevReport)};
-}
-// Auto-generates and saves a report for the week that just ended, keyed by
-// weekStart so old weeks remain viewable even as new sessions get logged.
-function generateWeeklyReport(weekStartStr){
-  const report=Object.assign({id:uid(),generatedAt:new Date().toISOString()},buildFullWeeklyReport(weekStartStr));
-  DB.weeklyReports=(DB.weeklyReports||[]).filter(r=>r.weekStart!==weekStartStr);
-  DB.weeklyReports.push(report);
-  DB.weeklyReports.sort((a,b)=>b.weekStart.localeCompare(a.weekStart));
-  if(DB.weeklyReports.length>104)DB.weeklyReports=DB.weeklyReports.slice(0,104);
-  scheduleSave();
-  return report;
-}
-// Runs alongside checkDayRollover: once the calendar has moved into a new
-// week, save a report for the week that just finished.
-function checkWeeklyRollover(){
-  const curWeekStart=weekStartOf(todayStr());
-  const last=DB.meta.lastWeeklyReportCheck;
-  if(last&&last!==curWeekStart){
-    generateWeeklyReport(last);
-    DB.meta.lastWeeklyReportCheck=curWeekStart;
-    scheduleSave();
-  }else if(!last){
-    DB.meta.lastWeeklyReportCheck=curWeekStart;
-    scheduleSave();
-  }
-}
-function renderWeeklyReportBody(r){
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const cmp=r.comparedToPrev;
-  return `
-  <div class="grid g3">
-    <div class="card stat"><div class="label">Hours Studied</div><div class="value">${r.hours.toFixed(1)}h</div>${cmp?`<div class="sub">${cmp.hoursDiff>=0?'+':''}${cmp.hoursDiff.toFixed(1)}h vs last week</div>`:''}</div>
-    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${r.questions}</div>${cmp?`<div class="sub">${cmp.questionsDiff>=0?'+':''}${cmp.questionsDiff} vs last week</div>`:''}</div>
-    <div class="card stat"><div class="label">Goal Completion</div><div class="value">${r.goalCompletionPct.toFixed(0)}%</div>${cmp?`<div class="sub">${cmp.goalCompletionDiff>=0?'+':''}${cmp.goalCompletionDiff.toFixed(0)}% vs last week</div>`:''}</div>
-  </div>
-  <div class="grid g2" style="margin-top:10px;">
-    <div class="card stat"><div class="label">Weekly Consistency</div><div class="value">${r.consistencyPct.toFixed(0)}%</div></div>
-    <div class="card stat"><div class="label">Subjects Studied</div><div class="value" style="font-size:14px;">${r.subjectsStudied.length?esc(r.subjectsStudied.join(', ')):'None yet'}</div></div>
-  </div>
-  <div class="card" style="margin-top:10px;overflow-x:auto;">
-    <div class="label" style="margin-bottom:8px;">Daily Breakdown (${r.weekStart} → ${r.weekEnd})</div>
-    <table><thead><tr><th>Day</th><th>Date</th><th>Hours</th><th>Questions</th><th>Goal %</th></tr></thead><tbody>
-    ${r.dailyBreakdown.map((d,i)=>`<tr${d.isFuture?' style="opacity:.4;"':''}><td>${dayNames[i]}</td><td>${d.date}</td><td>${d.hours.toFixed(1)}</td><td>${d.questions}</td><td>${d.goalPct.toFixed(0)}%</td></tr>`).join('')}
-    </tbody></table>
-  </div>
-  <div class="grid g2" style="margin-top:10px;">
-    <div class="card"><div class="label">Best Day</div><div class="sub" style="margin-top:6px;">${r.bestDay?esc(r.bestDay.date)+' — '+r.bestDay.hours.toFixed(1)+'h':'Not enough data yet'}</div></div>
-    <div class="card"><div class="label">Weakest Day</div><div class="sub" style="margin-top:6px;">${r.weakestDay?esc(r.weakestDay.date)+' — '+r.weakestDay.hours.toFixed(1)+'h':'Not enough data yet'}</div></div>
-  </div>
-  <div class="section-title"><h2>Weekly Insights</h2></div>
-  <div class="card">${r.insights.map(i=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">💡 ${esc(i)}</div>`).join('')}</div>`;
-}
-function renderWeeklyPast(){
-  const reports=(DB.weeklyReports||[]).slice().sort((a,b)=>b.weekStart.localeCompare(a.weekStart));
-  return `<div class="section-title"><h2>Past Weekly Reports</h2><span class="hint">${reports.length} saved</span></div>
-  <div class="card" style="overflow-x:auto;">
-  ${reports.length===0?'<div class="emptystate">No past weekly reports yet — one saves automatically once a week finishes.</div>':`
-  <table><thead><tr><th>Week</th><th>Hours</th><th>Questions</th><th>Goal %</th><th>Consistency</th><th></th></tr></thead><tbody>
-  ${reports.map(r=>`<tr><td>${r.weekStart} → ${r.weekEnd}</td><td>${r.hours.toFixed(1)}h</td><td>${r.questions}</td><td>${r.goalCompletionPct.toFixed(0)}%</td><td>${r.consistencyPct.toFixed(0)}%</td>
-  <td><button class="btn ghost sm" data-action="viewWeeklyReport" data-id="${r.id}">View</button></td></tr>`).join('')}
-  </tbody></table>`}
-  </div>`;
-}
-function renderWeeklyPage(){
-  const live=buildFullWeeklyReport(weekStartOf(todayStr()));
-  return `<div class="section-title"><h2>This Week</h2><span class="hint">${live.weekStart} → ${live.weekEnd} · in progress</span></div>
-  <div class="card" style="margin-bottom:10px;">
-    <button class="btn sm" data-action="saveWeeklyReportNow">💾 Save Snapshot Now</button>
-    <span class="sub" style="margin-left:8px;">This week finalizes and archives automatically once it ends — this just saves a snapshot early if you want one.</span>
-  </div>
-  ${renderWeeklyReportBody(live)}
-  ${renderWeeklyPast()}`;
 }
 
 /* ================= STUDY NOTES (quick notes + formulas + vocab) ================= */
@@ -1960,17 +1317,6 @@ function renderSettingsPage(){
   const accent=DB.meta.accent||'maroon';
   const swatches=[['maroon','#b3164f'],['rose','#e91e63'],['berry','#9c2861'],['crimson','#b3212d']];
   return `
-  <div class="section-title"><h2>Profile</h2></div>
-  <div class="card">
-    <div class="settings-row">
-      <div><div class="srlabel">Your Name</div><div class="srhint">Used to personalize AtlasTrackIt for you — no account or login involved</div></div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="profileNameInput" placeholder="e.g. Gitika" maxlength="40" style="width:160px;" value="${esc(DB.profile.name||'')}">
-        <button class="btn ghost sm" data-action="saveProfileName">Save</button>
-      </div>
-    </div>
-  </div>
-
   <div class="section-title"><h2>Appearance</h2></div>
   <div class="card">
     <div class="settings-row">
@@ -2012,15 +1358,12 @@ function renderSettingsPage(){
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoAuto" ${DB.meta.pomoAutoTransition?'checked':''}></label>
     </div>
     <div class="settings-row">
-      <div><div class="srlabel">Sound Notification</div><div class="srhint">Play a louder ~5-second alarm when a session ends (stops as soon as you return to the tab or touch the timer)</div></div>
+      <div><div class="srlabel">Sound Notification</div><div class="srhint">Play a short beep when a session ends</div></div>
       <label class="checkbox-row"><input type="checkbox" data-action="togglePomoSound" ${DB.meta.pomoSound?'checked':''}></label>
     </div>
     <div class="settings-row">
-      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active${typeof Notification!=='undefined'&&Notification.permission==='denied'?' — currently blocked; enable notifications for this site in your browser settings to receive them':''}${typeof Notification!=='undefined'&&Notification.permission==='default'&&DB.meta.pomoNotify?' — not yet allowed by your browser; click Enable to turn them on':''}</div></div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        ${typeof Notification!=='undefined'&&Notification.permission==='default'&&DB.meta.pomoNotify?'<button class="btn sm" data-action="requestPomoNotifyPermission">Enable</button>':''}
-        <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
-      </div>
+      <div><div class="srlabel">Browser Notification</div><div class="srhint">Show a system notification when a session ends and the tab isn't active</div></div>
+      <label class="checkbox-row"><input type="checkbox" data-action="togglePomoNotify" ${DB.meta.pomoNotify?'checked':''}></label>
     </div>
   </div>
 
@@ -2066,22 +1409,20 @@ function fmtHrsMin(hrs){const h=Math.floor(hrs);const m=Math.round((hrs-h)*60);r
    rendered. State is persisted to localStorage on every tick so it
    survives a page refresh or the tab being closed and reopened. */
 const POMO_LS_KEY='atlastrackit_pomo_state_v1';
-let pomo={seconds:25*60,running:false,mode:'Work',interval:null,targetEndTs:null,endTimeoutHandle:null};
+let pomo={seconds:25*60,running:false,mode:'Work',interval:null,subjectKey:'',topicId:''};
 let studyTimer={seconds:0,running:false}; // tracks total elapsed "Work" seconds today, feeds the dashboard ring
-const SESSION_TYPES=['Study','Revision','Practice Questions','Mock Test'];
-// The Subject/Topic/Sub-topic/Session Type the current Pomodoro session is being
-// logged under. Set once via the Start Study Session dialog, then stays active
-// across every Work/Break cycle until the user ends the session or switches it —
-// this is what fixes study time being silently attributed to the wrong subject.
-let activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
+function pomoSelectedTopic(){
+  const key=pomo.subjectKey;
+  if(!key||!DB.subjects[key])return null;
+  return DB.subjects[key].topics.find(t=>t.id===pomo.topicId)||null;
+}
 
 function savePomoState(){
   try{
     localStorage.setItem(POMO_LS_KEY,JSON.stringify({
       mode:pomo.mode,seconds:pomo.seconds,running:pomo.running,
-      ts:Date.now(),targetEndTs:pomo.running?pomo.targetEndTs:null,
-      studySeconds:studyTimer.seconds,studyDate:todayStr(),
-      activeStudySession
+      ts:Date.now(),studySeconds:studyTimer.seconds,studyDate:todayStr(),
+      subjectKey:pomo.subjectKey,topicId:pomo.topicId
     }));
   }catch(e){/* localStorage unavailable */}
 }
@@ -2095,299 +1436,117 @@ function loadPomoState(){
     pomo.seconds=typeof s.seconds==='number'?s.seconds:pomoDurationSeconds(pomo.mode);
     pomo.running=!!s.running;
     studyTimer.seconds=Number(s.studySeconds)||0;
+    pomo.subjectKey=s.subjectKey||'';
+    pomo.topicId=s.topicId||'';
     pomoSavedDate=s.studyDate||todayStr();
-    if(s.activeStudySession&&typeof s.activeStudySession==='object'){
-      activeStudySession=Object.assign({active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''},s.activeStudySession);
-    }
-    if(pomo.running&&pomo.mode==='Work'&&!activeStudySession.active){
-      // A Work-mode timer was running with no linked subject — this is exactly the
-      // state that used to get silently logged under the first subject in the list.
-      // Stop it here instead; the next Start click will require picking a subject.
-      pomo.running=false; studyTimer.running=false; pomo.targetEndTs=null;
-    }
-    if(pomo.running){
-      // Reconstruct the exact wall-clock moment this phase should end (prefer the
-      // persisted value; fall back to deriving it from the old ts+seconds shape
-      // so state saved before this fix still loads correctly), then catch up
-      // using the same real-time sync used while the app stays open — this
-      // covers the page being closed/refreshed just like it covers a
-      // background tab, instead of a separate elapsed-seconds calculation.
-      pomo.targetEndTs=typeof s.targetEndTs==='number'?s.targetEndTs:(s.ts?s.ts+pomo.seconds*1000:Date.now()+pomo.seconds*1000);
-      studyTimer.running=(pomo.mode==='Work');
-      syncPomoFromClock();
+    if(pomo.running&&s.ts){
+      // catch up for time elapsed while the page was closed/refreshed
+      const elapsed=Math.max(0,Math.floor((Date.now()-s.ts)/1000));
+      if(pomo.mode==='Work')studyTimer.seconds+=elapsed;
+      pomo.seconds-=elapsed;
       if(pomo.seconds<=0){
         // missed the session-end transition while away; settle into a fresh
         // session in the current mode rather than guessing how many cycles passed
         pomo.seconds=pomoDurationSeconds(pomo.mode);
-        pomo.targetEndTs=Date.now()+pomo.seconds*1000;
         pomo.running=false;
         studyTimer.running=false;
       }
     }
   }catch(e){/* ignore malformed state */}
 }
+let sessionDate=null; // tracks the "current" date for an open session, used to detect midnight rollover while the app stays open
 function finalizeDay(oldDate){
   if(!oldDate||oldDate===todayStr())return;
-  const alreadyArchived=(DB.history||[]).some(h=>h.date===oldDate);
-  if(!alreadyArchived){
-    // flush any live, not-yet-logged Pomodoro time for the old day into a real session,
-    // correctly attributed to whatever the active study session actually was — so it
-    // counts toward Total Study Hours / Streak / History under the right subject
-    if(studyTimer.seconds>0)flushActiveStudySegment(oldDate);
-    const studyHours=hoursOn(oldDate);
-    const target=effectiveTargetFor(oldDate);
-    const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
-    const questionsSolved=questionsOn(oldDate);
-    const revisionsCompleted=allTopics().filter(t=>t.lastRevisionDate===oldDate).length;
-    DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
-    DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
-    DB.history.sort((a,b)=>b.date.localeCompare(a.date));
-    if(DB.history.length>730)DB.history=DB.history.slice(0,730);
+  if((DB.history||[]).some(h=>h.date===oldDate))return; // already finalized this date, avoid double-counting
+  // flush any live, not-yet-logged Pomodoro time for the old day into a real session
+  // so it counts toward Total Study Hours / Streak / History, then clear the live counter
+  if(studyTimer.seconds>0){
+    DB.sessions.push({id:uid(),date:oldDate,start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
+      subject:subjectKeys()[0]||'',topic:'Pomodoro Session',subtopic:'',qSolved:0,qCorrect:0,qWrong:0,
+      source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
+      revisionDone:false,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
   }
-  // Reset today's live counters whenever a new day has been detected — this must run
-  // every time, independent of the archive-duplication guard above, otherwise a leftover
-  // live Pomodoro counter from oldDate can survive and get added into today's progress.
-  // A new calendar day is also a natural session boundary, so the active study
-  // session ends here too — the next Pomodoro will ask for Subject/Topic again.
-  activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
+  const studyHours=hoursOn(oldDate);
+  const target=effectiveTargetFor(oldDate);
+  const goalPct=target?Math.min(100,Math.round(studyHours/target*100)):0;
+  const questionsSolved=questionsOn(oldDate);
+  const revisionsCompleted=allTopics().filter(t=>t.lastRevisionDate===oldDate).length;
+  DB.history=(DB.history||[]).filter(h=>h.date!==oldDate);
+  DB.history.push({date:oldDate,studyHours,goalPct,questionsSolved,revisionsCompleted});
+  DB.history.sort((a,b)=>b.date.localeCompare(a.date));
+  if(DB.history.length>120)DB.history=DB.history.slice(0,120);
+  // reset only today's live counters — subjects, topics, streak, goals, mocks, totals are untouched
   studyTimer.seconds=0; studyTimer.running=false;
-  stopAlarm(); clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); pomo.targetEndTs=null;
+  clearInterval(pomo.interval); pomo.running=false; pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
   savePomoState(); scheduleSave();
 }
 function checkDayRollover(){
   const today=todayStr();
-  const last=DB.meta.lastActiveDate;
-  if(last&&last!==today){
-    // a new calendar day has begun since AtlasTrackIt was last active:
-    // archive yesterday's stats into Study History and reset today's live counters
-    finalizeDay(last);
-    DB.meta.lastActiveDate=today;
-    scheduleSave();
+  if(sessionDate&&sessionDate!==today){
+    finalizeDay(sessionDate);
+    sessionDate=today;
     render();
-  }else if(!last){
-    // legacy save with no lastActiveDate yet — start tracking from today
-    DB.meta.lastActiveDate=today;
-    scheduleSave();
   }
 }
-let pomoAlarmCtx=null, pomoAlarmOscillators=[], pomoAlarmStopTimeout=null;
-// Browsers only let an AudioContext produce sound if it was created/resumed during
-// a real user gesture (a click). The alarm itself always fires later from a
-// background setTimeout with no gesture of its own, so creating a fresh
-// AudioContext right there (as this used to do) starts it 'suspended' and it
-// never actually plays — especially after the tab has sat idle through a whole
-// session. Fix: unlock ONE context during a genuine click (see pomoStartPause)
-// and keep reusing that same instance for every alarm from then on.
-function ensurePomoAudioUnlocked(){
-  try{
-    if(!pomoAlarmCtx)pomoAlarmCtx=new (window.AudioContext||window.webkitAudioContext)();
-    if(pomoAlarmCtx.state==='suspended')pomoAlarmCtx.resume().catch(()=>{});
-  }catch(e){/* Web Audio not available */}
-}
-function playAlarm(){
+function playBeep(){
   if(!DB.meta.pomoSound)return;
-  stopAlarm(); // never let two alarms overlap
   try{
-    ensurePomoAudioUnlocked(); // safety net in case Start was never clicked as a real gesture (e.g. restored running state)
-    const ctx=pomoAlarmCtx;
-    if(!ctx)return;
-    const totalSeconds=5, beepLen=0.35, gap=0.22;
-    let t=ctx.currentTime;
-    const end=t+totalSeconds;
-    while(t<end){
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type='square'; o.frequency.value=880; // brighter/louder-feeling than the old sine beep
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(0.9,t+0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+beepLen);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(t); o.stop(t+beepLen+0.05);
-      pomoAlarmOscillators.push(o);
-      t+=beepLen+gap;
-    }
-    pomoAlarmStopTimeout=setTimeout(stopAlarm,(totalSeconds+0.3)*1000);
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.0001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.5);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.55);
   }catch(e){/* audio not available */}
-}
-function stopAlarm(){
-  if(pomoAlarmStopTimeout){clearTimeout(pomoAlarmStopTimeout); pomoAlarmStopTimeout=null;}
-  pomoAlarmOscillators.forEach(o=>{try{o.stop();}catch(e){/* already stopped */}});
-  pomoAlarmOscillators=[];
-  // pomoAlarmCtx is intentionally kept open/alive here (not closed) so it stays
-  // reusable for the next alarm — closing and recreating it every time was
-  // exactly what forced each new alarm to start from an unlocked 'suspended' state.
 }
 function notifySessionEnd(nextMode){
   if(!DB.meta.pomoNotify)return;
   if(typeof Notification==='undefined')return;
   if(!document.hidden)return; // only notify when the tab isn't active
-  // Only fire if permission was already granted. Browsers require a genuine user
-  // gesture (a click) to show the permission prompt — requesting it here, from a
-  // background setTimeout, is silently ignored by the browser (no prompt, no
-  // grant), which is why notifications could look "enabled" via the checkbox yet
-  // never actually appear. The only place permission can really be requested is
-  // the Settings toggle / "Enable" button below, both real clicks.
-  if(Notification.permission==='granted'){
-    new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
-  }
-  // Note: if Notification.permission is 'denied', the browser will never
-  // prompt again — the user must re-enable notifications for this site in
-  // their browser settings, there's no way for the page to force it.
+  const fire=()=>new Notification('AtlasTrackIt',{body:nextMode==='Break'?'Study session complete — time for a break!':'Break over — back to studying.'});
+  if(Notification.permission==='granted')fire();
+  else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
 }
 function pomoDurationSeconds(mode){return (mode==='Work'?(DB.meta.pomoWork||25):(DB.meta.pomoBreak||5))*60;}
-
-// Recomputes pomo.seconds (and the study-time credit) from the real wall-clock
-// target end time instead of trusting a plain per-tick decrement. This is what
-// keeps the countdown accurate even when the regular 1s interval gets throttled
-// by the browser in a background/inactive tab and fires late or less often.
-function syncPomoFromClock(){
-  if(!pomo.running||!pomo.targetEndTs)return;
-  const remainingSec=Math.max(0,Math.round((pomo.targetEndTs-Date.now())/1000));
-  const elapsedSec=Math.max(0,pomo.seconds-remainingSec);
-  if(elapsedSec>0&&pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds+=elapsedSec;
-  pomo.seconds=remainingSec;
-}
-// Schedules a one-shot timer aimed precisely at the real end-of-phase moment.
-// A single setTimeout for the exact remaining duration is far more reliable in
-// a backgrounded tab than waiting for a repeating 1s setInterval to notice —
-// browsers still throttle it once a tab has been hidden for several minutes
-// (Chrome, for example, can delay background timers to roughly once a
-// minute), but it fires much closer to on-time than the old tick-counting
-// approach, and the alarm/notification will still go off without needing the
-// tab to be brought to the front first.
-function pomoScheduleEndTimeout(){
-  clearTimeout(pomo.endTimeoutHandle);
-  if(!pomo.running||!pomo.targetEndTs)return;
-  pomo.endTimeoutHandle=setTimeout(pomoPhaseEnd,Math.max(0,pomo.targetEndTs-Date.now()));
-}
-function pomoPhaseEnd(){
-  if(!pomo.running)return; // guard against a stale timeout firing after a pause/reset
-  syncPomoFromClock();
-  playAlarm();
-  const finishedMode=pomo.mode;
-  const nextMode=finishedMode==='Work'?'Break':'Work';
-  notifySessionEnd(nextMode);
-  if(DB.meta.pomoAutoTransition){
-    pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
-    studyTimer.running=(nextMode==='Work');
-    pomo.targetEndTs=Date.now()+pomo.seconds*1000;
-    pomoScheduleEndTimeout();
-  }else{
-    pomo.running=false; clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
-    pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
-    studyTimer.running=false;
-  }
-  updateStudySessionUI();
-  savePomoState();
-}
-// Lightweight UI heartbeat — while the tab is visible this just re-syncs the
-// on-screen countdown from the clock every second (self-correcting any drift
-// instead of compounding it); pomoPhaseEnd is normally triggered by the
-// dedicated end-timeout above, but it's called here too as a fallback in case
-// that timeout was ever missed, so the display never gets stuck at 0:00.
 function pomoTick(){
   checkDayRollover();
-  if(!pomo.running)return;
-  syncPomoFromClock();
-  if(pomo.seconds<=0){ pomoPhaseEnd(); return; }
+  pomo.seconds--;
+  if(pomo.mode==='Work'&&studyTimer.running)studyTimer.seconds++;
+  if(pomo.seconds<=0){
+    playBeep();
+    const finishedMode=pomo.mode;
+    const nextMode=finishedMode==='Work'?'Break':'Work';
+    notifySessionEnd(nextMode);
+    if(DB.meta.pomoAutoTransition){
+      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+      studyTimer.running=(nextMode==='Work');
+    }else{
+      pomo.running=false; clearInterval(pomo.interval);
+      pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
+      studyTimer.running=false;
+    }
+  }
   updateStudySessionUI();
   savePomoState();
 }
-// Sets the active Subject/Topic/Sub-topic/Session Type context and remembers it
-// as the default for next time — called once when a study session starts (or
-// when switching mid-session), never repeatedly for every Pomodoro/break cycle.
-function beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType){
-  activeStudySession={active:true,subjectKey,subjectLabel:subjLabel(subjectKey),topicId,topicName,subtopic,sessionType,startedAt:new Date().toISOString()};
-  DB.meta.lastSessionSubjectKey=subjectKey; DB.meta.lastSessionTopicId=topicId; DB.meta.lastSessionTopicName=topicName;
-  DB.meta.lastSessionSubtopic=subtopic; DB.meta.lastSessionType=sessionType;
-  scheduleSave(); savePomoState();
-}
-// Logs everything accumulated in studyTimer.seconds as one correctly-categorized
-// DB.sessions record (Subject/Topic/Sub-topic/Session Type/start/end/date), then
-// clears the bucket. Called when a session ends, switches, or on a day rollover —
-// never per-Pomodoro, so one continuous study session stays one log entry.
-// dateOverride lets a day-rollover flush log under the day the time was actually
-// earned, rather than the new "today".
-function flushActiveStudySegment(dateOverride){
-  if(studyTimer.seconds<=0)return;
-  const hours=+(studyTimer.seconds/3600).toFixed(4);
-  const endDate=new Date();
-  const startDate=activeStudySession.startedAt?new Date(activeStudySession.startedAt):new Date(endDate.getTime()-studyTimer.seconds*1000);
-  const pad=n=>String(n).padStart(2,'0');
-  const fmtHM=dt=>`${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-  const sessionType=activeStudySession.sessionType||'Study';
-  DB.sessions.push({
-    id:uid(),date:dateOverride||todayStr(),start:fmtHM(startDate),end:fmtHM(endDate),hours,
-    subject:activeStudySession.subjectKey||subjectKeys()[0]||'',
-    topic:activeStudySession.topicName||'Pomodoro Session',
-    subtopic:activeStudySession.subtopic||'',
-    qSolved:0,qCorrect:0,qWrong:0,
-    source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',breakMin:0,
-    revisionDone:sessionType==='Revision',mockDone:sessionType==='Mock Test',
-    wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true,sessionType
-  });
-  // Feed the same hours into the topic's tracked time so Subjects/Analytics (which
-  // read topic.timeSpent) reflect real Pomodoro study, not only manual entries.
-  if(activeStudySession.subjectKey&&activeStudySession.topicId&&DB.subjects[activeStudySession.subjectKey]){
-    const topic=DB.subjects[activeStudySession.subjectKey].topics.find(x=>x.id===activeStudySession.topicId);
-    if(topic)topic.timeSpent=+((Number(topic.timeSpent)||0)+hours).toFixed(2);
-  }
-  studyTimer.seconds=0;
-  activeStudySession.startedAt=new Date().toISOString(); // fresh start for whatever segment comes next
-  scheduleSave(); savePomoState();
-}
-// The "Start Study Session" / "Switch Subject" dialog — same form either way,
-// asked once per session rather than before every Pomodoro. Pre-fills the last
-// used Subject/Topic/Sub-topic/Session Type (or the current session's, when
-// switching) so the user can just confirm or tweak instead of retyping.
-function openStudySessionModal(opts){
-  opts=opts||{};
-  const isSwitch=opts.mode==='switch';
-  const keys=subjectKeys();
-  if(!keys.length){ alert('Add a subject first (Study → Subjects) before starting a study session.'); return; }
-  const defaultKey=(opts.subjectKey&&DB.subjects[opts.subjectKey])?opts.subjectKey:((DB.meta.lastSessionSubjectKey&&DB.subjects[DB.meta.lastSessionSubjectKey])?DB.meta.lastSessionSubjectKey:keys[0]);
-  const defaultTopicId=opts.topicId!==undefined?opts.topicId:(DB.meta.lastSessionTopicId||'');
-  const defaultSubtopic=opts.subtopic!==undefined?opts.subtopic:(DB.meta.lastSessionSubtopic||'');
-  const defaultType=opts.sessionType||DB.meta.lastSessionType||'Study';
-  openModal(`<h3>${isSwitch?'🔁 Switch Subject / Session':'🎯 Start Study Session'}</h3>
-  <p class="sub" style="margin:0 0 10px;">${isSwitch?"Time so far will be logged under the current topic first, then the timer keeps running under the new one.":"This stays active through every Pomodoro and break until you end or switch it — no need to re-enter it each cycle."}</p>
-  <div class="formgrid" style="grid-template-columns:1fr;">
-    <label>Subject
-      <select id="ss_subject" data-action="subjectFieldChange" data-prefix="ss">
-        ${keys.map(k=>`<option value="${k}" ${k===defaultKey?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
-      </select>
-    </label>
-    <label>Topic <span id="ss_topic_wrap">${topicFieldHtml(defaultKey,'ss',defaultTopicId)}</span></label>
-    <label>Sub-topic (optional) <input type="text" id="ss_subtopic" placeholder="e.g. Prime Factorization" value="${esc(defaultSubtopic)}"></label>
-    <label>Session Type
-      <select id="ss_type">
-        ${SESSION_TYPES.map(t=>`<option value="${esc(t)}" ${t===defaultType?'selected':''}>${esc(t)}</option>`).join('')}
-      </select>
-    </label>
-  </div>
-  <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="${isSwitch?'confirmSwitchStudySession':'confirmStartStudySession'}">${isSwitch?'Switch & Continue':'Start'}</button></div>`);
-}
 function pomoStartPause(){
-  stopAlarm(); // interacting with the timer is one of the ways to silence the alarm
-  ensurePomoAudioUnlocked(); // must happen inside this real click so the alarm can play later, from a background timer with no gesture of its own
   pomo.running=!pomo.running;
   if(pomo.running){
     if(pomo.mode==='Work')studyTimer.running=true;
-    pomo.targetEndTs=Date.now()+pomo.seconds*1000;
     pomo.interval=setInterval(pomoTick,1000);
-    pomoScheduleEndTimeout();
+    const topic=pomoSelectedTopic();
+    if(topic&&topic.status==='Not Started'){ topic.status='In Progress'; scheduleSave(); }
   }else{
-    syncPomoFromClock(); // capture the exact remaining time at the moment of pausing
-    clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
-    studyTimer.running=false;
+    clearInterval(pomo.interval); studyTimer.running=false;
   }
   updateStudySessionUI();
   savePomoState();
 }
 function pomoReset(){
-  stopAlarm();
-  clearInterval(pomo.interval); clearTimeout(pomo.endTimeoutHandle);
-  pomo.running=false; studyTimer.running=false;
-  pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); pomo.targetEndTs=null;
+  clearInterval(pomo.interval); pomo.running=false; studyTimer.running=false;
+  pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work');
   updateStudySessionUI();
   savePomoState();
 }
@@ -2417,15 +1576,6 @@ function updateStudySessionUI(){
 function openModal(html){document.getElementById('modalRoot').innerHTML=`<div class="modal-overlay" data-action="closeModalBg"><div class="modal" data-stop>${html}</div></div>`;}
 function closeModal(){document.getElementById('modalRoot').innerHTML='';}
 
-/* ================= PROFILE (name only — no accounts, no login) ================= */
-function maybeShowNamePrompt(){
-  if(DB.profile&&DB.profile.name)return; // already have a name — never ask again
-  openModal(`<h3>Welcome to AtlasTrackIt</h3>
-  <p class="sub" style="margin:0 0 10px;">What should I call you?</p>
-  <input type="text" id="firstNameInput" placeholder="e.g. Gitika" maxlength="40" style="width:100%;">
-  <div class="row"><button class="btn" data-action="saveFirstName">Continue</button></div>`);
-}
-
 /* ================= MOBILE SIDEBAR ================= */
 function openMobileSidebar(){document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show');}
 function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show');}
@@ -2445,19 +1595,6 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.action==='tab'){/* handled in click */}
   if(t.dataset.field && t.dataset.topic){ handleTopicField(t); }
-  if(t.dataset.action==='subjectFieldChange'){
-    const prefix=t.dataset.prefix;
-    const wrap=document.getElementById(prefix+'_topic_wrap');
-    if(wrap)wrap.innerHTML=topicFieldHtml(t.value,prefix);
-  }
-  if(t.dataset.action==='topicSelectChange'){
-    const prefix=t.dataset.prefix;
-    const custom=document.getElementById(prefix+'_topic_custom');
-    if(custom){
-      if(t.value==='__custom__'){ custom.style.display='block'; custom.focus(); }
-      else custom.style.display='none';
-    }
-  }
   if(t.dataset.action==='goalStatus'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.status=t.value; scheduleSave(); render(); }
   if(t.dataset.action==='goalProgress'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.progress=Number(t.value); scheduleSave(); render(); }
   if(t.dataset.action==='setPriority'){ DB.subjects[t.dataset.key].priority=t.value; scheduleSave(); render(); }
@@ -2466,46 +1603,21 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setTarget'){ DB.meta.targetHoursToday=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setQuestionTarget'){ DB.meta.questionTarget=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
-  if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; task.completedAt=t.checked?new Date().toISOString():''; scheduleSave(); render();} }
+  if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
+  if(t.dataset.action==='setPomoSubject'){ pomo.subjectKey=t.value; pomo.topicId=''; savePomoState(); render(); }
+  if(t.dataset.action==='setPomoTopic'){ pomo.topicId=t.value; savePomoState(); }
   if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='togglePomoAuto'){ DB.meta.pomoAutoTransition=t.checked; scheduleSave(); }
   if(t.dataset.action==='togglePomoSound'){ DB.meta.pomoSound=t.checked; scheduleSave(); }
   if(t.dataset.action==='togglePomoNotify'){
     DB.meta.pomoNotify=t.checked; scheduleSave();
-    if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default'){
-      Notification.requestPermission().then(()=>render());
-    }else{
-      render();
-    }
+    if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default')Notification.requestPermission();
   }
   if(t.id==='importFile'){ importDataFromFile(t); }
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='searchInput') doSearch(e.target.value);
-  if(e.target.id==='atlasInput') autosizeAtlasInput(e.target);
-});
-document.addEventListener('keydown',e=>{
-  if(e.target && e.target.id==='atlasInput' && e.key==='Enter' && !e.shiftKey){
-    e.preventDefault();
-    if(!atlasWaiting)atlasSendMessage();
-  }
-});
-// Returning to the tab is one of the ways to silence the alarm, and it also
-// snaps the on-screen countdown back to the true remaining time immediately
-// rather than waiting for the next (possibly still-throttled) tick — the
-// dedicated end-timeout in pomoScheduleEndTimeout already handles firing the
-// alarm/notification on time while hidden; this is just the "welcome back"
-// catch-up for the UI and a safety net in the rare case that timeout was
-// itself delayed past the point of returning.
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)return;
-  stopAlarm();
-  checkScheduledRevisionReminders();
-  if(!pomo.running)return;
-  syncPomoFromClock();
-  if(pomo.seconds<=0){ pomoPhaseEnd(); }
-  else{ updateStudySessionUI(); savePomoState(); }
 });
 
 function handleTopicField(t){
@@ -2539,39 +1651,6 @@ function handleAction(action,btn){
     savePomoState(); scheduleSave(); render(); return;
   }
   if(action==='toggleDark'){document.documentElement.classList.toggle('dark'); DB.meta.dark=document.documentElement.classList.contains('dark'); scheduleSave(); return;}
-  if(action==='requestPomoNotifyPermission'){
-    if(typeof Notification!=='undefined')Notification.requestPermission().then(()=>render());
-    return;
-  }
-  if(action==='atlasChip'){
-    if(atlasWaiting)return;
-    const ta=document.getElementById('atlasInput');
-    if(ta){ta.value=d.text; ta.focus(); autosizeAtlasInput(ta);}
-    return;
-  }
-  if(action==='atlasSend'){ atlasSendMessage(); return; }
-  if(action==='saveFirstName'){
-    const val=(document.getElementById('firstNameInput').value||'').trim();
-    if(!val){alert('Please enter a name to continue.'); return;}
-    DB.profile.name=val.slice(0,40); scheduleSave(); closeModal(); render(); return;
-  }
-  if(action==='saveProfileName'){
-    const val=(document.getElementById('profileNameInput').value||'').trim();
-    DB.profile.name=val.slice(0,40); scheduleSave(); render(); return;
-  }
-  if(action==='saveWeeklyReportNow'){
-    generateWeeklyReport(weekStartOf(todayStr()));
-    render();
-    return;
-  }
-  if(action==='viewWeeklyReport'){
-    const r=(DB.weeklyReports||[]).find(x=>x.id===d.id);
-    if(!r)return;
-    openModal(`<h3>Weekly Report — ${esc(r.weekStart)} → ${esc(r.weekEnd)}</h3>
-    <div style="max-height:65vh;overflow:auto;">${renderWeeklyReportBody(r)}</div>
-    <div class="row" style="margin-top:12px;"><button class="btn ghost" data-action="closeModal">Close</button></div>`);
-    return;
-  }
   if(action==='openHistory'){
     const rows=(DB.history||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
     openModal(`<h3>📅 Study History</h3>
@@ -2601,12 +1680,7 @@ function handleAction(action,btn){
   if(action==='closeSubject'){openSubject=null; render(); return;}
   if(action==='addRevision'){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
-    if(topic.revisions<5){
-      topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised';
-      DB.revisionLog=DB.revisionLog||[];
-      DB.revisionLog.push({id:uid(),kind:'topic',name:topic.name,subject:subjLabel(d.key),revNum:topic.revisions,date:todayStr(),completedAt:new Date().toISOString()});
-      scheduleSave(); render();
-    }
+    if(topic.revisions<5){topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; scheduleSave(); render();}
     return;
   }
   if(action==='openEditRevisions'){
@@ -2628,119 +1702,36 @@ function handleAction(action,btn){
     else{ if(increased)topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; }
     scheduleSave(); closeModal(); render(); return;
   }
-  /* ---- Legacy freeform revision reminders (no longer created via the UI —
-     Schedule Revision is the single add-flow — but still completable/deletable
-     so nothing a user already entered is lost) ---- */
+  /* ---- Custom (freeform) revision reminders ---- */
+  if(action==='openAddCustomRevision'){
+    openModal(`<h3>Add a Revision</h3>
+    <p class="sub" style="margin:0 0 10px;">Add a quick revision reminder — for anything not already tracked as a syllabus topic.</p>
+    <div class="formgrid" style="grid-template-columns:1fr;">
+      <label>Topic / Item <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
+      <label>Subject (optional) <input type="text" id="cr_subject" placeholder="e.g. Quant"></label>
+      <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
+      <label>Revision # (optional) <input type="number" min="1" id="cr_revnum" placeholder="e.g. 1"></label>
+    </div>
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Add Revision</button></div>`);
+    return;
+  }
+  if(action==='saveCustomRevision'){
+    const text=document.getElementById('cr_text').value.trim();
+    if(!text){alert('Please enter a topic or item to revise.'); return;}
+    const subject=document.getElementById('cr_subject').value.trim();
+    const due=document.getElementById('cr_due').value||todayStr();
+    const revNum=document.getElementById('cr_revnum').value?Number(document.getElementById('cr_revnum').value):null;
+    DB.customRevisions=DB.customRevisions||[];
+    DB.customRevisions.push({id:uid(),text,subject,due,revNum});
+    scheduleSave(); closeModal(); render(); return;
+  }
   if(action==='completeCustomRevision'){
-    const item=(DB.customRevisions||[]).find(c=>c.id===d.id);
-    if(item){
-      DB.revisionLog=DB.revisionLog||[];
-      const name=item.text+(item.subtopic?' — '+item.subtopic:'');
-      DB.revisionLog.push({id:uid(),kind:'custom',name,subject:item.subject||'',revNum:item.revNum||null,date:todayStr(),completedAt:new Date().toISOString()});
-    }
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
     scheduleSave(); render(); return;
   }
   if(action==='deleteCustomRevision'){
     if(!confirm('Remove this revision reminder?'))return;
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
-    scheduleSave(); render(); return;
-  }
-  // Dismisses one auto-suggested spaced-repetition reminder (Rev N for this
-  // topic). It stays hidden only for that specific revision number — once the
-  // topic is actually marked revised, revisions advances and the next
-  // reminder (Rev N+1) is unaffected and will still show up as normal.
-  if(action==='dismissAutoRevision'){
-    DB.dismissedRevisions=DB.dismissedRevisions||[];
-    DB.dismissedRevisions.push({topicId:d.topic,revNum:Number(d.revnum)});
-    scheduleSave(); render(); return;
-  }
-  /* ---- Scheduled Revisions: planned in advance (Subject + Topic + date/time + note) ---- */
-  if(action==='openScheduleRevision'){
-    const firstKey=subjectKeys()[0]||'';
-    openModal(`<h3>📅 Schedule a Revision</h3>
-    <p class="sub" style="margin:0 0 10px;">Plan a revision in advance — it'll show up under Today's Revisions once it's due, with an optional reminder.</p>
-    <div class="formgrid" style="grid-template-columns:1fr;">
-      <label>Subject
-        <select id="sr2_subject" data-action="subjectFieldChange" data-prefix="sr2">
-          ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
-          <option value="">Other / not tracked</option>
-        </select>
-      </label>
-      <label>Topic <span id="sr2_topic_wrap">${topicFieldHtml(firstKey,'sr2')}</span></label>
-      <label>Sub-topic (optional) <input type="text" id="sr2_subtopic" placeholder="e.g. Prime Factorization"></label>
-      <div class="grid g2" style="gap:10px;">
-        <label>Revision Number (optional) <input type="number" min="1" id="sr2_revnum" placeholder="e.g. 1"></label>
-        <label>Revision Date <input type="date" id="sr2_date" value="${todayStr()}" min="${MIN_DATE}"></label>
-      </div>
-      <label>Time (optional) <input type="time" id="sr2_time"></label>
-      <label>Notes (optional) <textarea id="sr2_note" placeholder="Anything to remember for this revision"></textarea></label>
-    </div>
-    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveScheduleRevision">Schedule Revision</button></div>`);
-    return;
-  }
-  if(action==='saveScheduleRevision'){
-    const subjectKey=document.getElementById('sr2_subject').value;
-    const {topicId,topicName}=readTopicField('sr2',subjectKey);
-    if(!topicName){alert('Please choose or enter a topic to revise.'); return;}
-    const subtopic=document.getElementById('sr2_subtopic').value.trim();
-    const revNum=document.getElementById('sr2_revnum').value?Number(document.getElementById('sr2_revnum').value):null;
-    const date=document.getElementById('sr2_date').value||todayStr();
-    const time=document.getElementById('sr2_time').value||'';
-    const note=document.getElementById('sr2_note').value.trim();
-    DB.scheduledRevisions=DB.scheduledRevisions||[];
-    DB.scheduledRevisions.push({
-      id:uid(),subjectKey:subjectKey||'',subjectLabel:subjectKey?subjLabel(subjectKey):'',
-      topicId:topicId||'',topicName,subtopic,revNum,date,time,note,
-      status:'Scheduled',createdAt:new Date().toISOString(),completedAt:'',notifiedAt:''
-    });
-    scheduleSave(); closeModal(); render(); return;
-  }
-  if(action==='markScheduledRevisionDone'){
-    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
-    if(!item)return;
-    item.status='Completed'; item.completedAt=new Date().toISOString();
-    let revNum=item.revNum||null;
-    if(item.subjectKey&&item.topicId&&DB.subjects[item.subjectKey]){
-      const topic=DB.subjects[item.subjectKey].topics.find(x=>x.id===item.topicId);
-      if(topic&&topic.revisions<5){
-        topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised';
-        revNum=item.revNum||topic.revisions;
-      }
-    }
-    DB.revisionLog=DB.revisionLog||[];
-    const name=item.topicName+(item.subtopic?' — '+item.subtopic:'');
-    DB.revisionLog.push({id:uid(),kind:'scheduled',name,subject:item.subjectLabel||'',revNum,date:todayStr(),completedAt:item.completedAt});
-    scheduleSave(); render(); return;
-  }
-  if(action==='skipScheduledRevision'){
-    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
-    if(item){ item.status='Skipped'; item.skippedAt=new Date().toISOString(); scheduleSave(); render(); }
-    return;
-  }
-  if(action==='openRescheduleRevision'){
-    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
-    if(!item)return;
-    openModal(`<h3>🔁 Reschedule Revision</h3>
-    <p class="sub" style="margin:0 0 10px;">${esc(item.topicName)}${item.subjectLabel?' · '+esc(item.subjectLabel):''}</p>
-    <div class="formgrid" style="grid-template-columns:1fr 1fr;">
-      <label>New Date <input type="date" id="sr2_reschedule_date" value="${item.date}" min="${MIN_DATE}"></label>
-      <label>Time (optional) <input type="time" id="sr2_reschedule_time" value="${item.time||''}"></label>
-    </div>
-    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveRescheduleRevision" data-id="${item.id}">Save</button></div>`);
-    return;
-  }
-  if(action==='saveRescheduleRevision'){
-    const item=(DB.scheduledRevisions||[]).find(s=>s.id===d.id);
-    if(!item)return;
-    item.date=document.getElementById('sr2_reschedule_date').value||item.date;
-    item.time=document.getElementById('sr2_reschedule_time').value||'';
-    item.status='Scheduled'; item.notifiedAt='';
-    scheduleSave(); closeModal(); render(); return;
-  }
-  if(action==='deleteScheduledRevision'){
-    if(!confirm('Delete this scheduled revision?'))return;
-    DB.scheduledRevisions=(DB.scheduledRevisions||[]).filter(s=>s.id!==d.id);
     scheduleSave(); render(); return;
   }
   if(action==='openNote'){
@@ -2939,52 +1930,10 @@ function handleAction(action,btn){
   }
   if(action==='deleteVocab'){DB.notes.vocab=DB.notes.vocab.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
   /* ---- Study Session (Pomodoro) controls ---- */
-  if(action==='pomoStart'){
-    if(!pomo.running&&!activeStudySession.active){ openStudySessionModal(); return; } // ask once, before the first Pomodoro of a new session
-    pomoStartPause(); return;
-  }
+  if(action==='pomoStart'){ pomoStartPause(); return; }
   if(action==='pomoResetBtn'){
     if(!confirm('Reset the current Study Session timer?'))return;
     pomoReset(); return;
-  }
-  if(action==='openSwitchStudySession'){
-    if(!activeStudySession.active){ openStudySessionModal(); return; }
-    openStudySessionModal({mode:'switch',subjectKey:activeStudySession.subjectKey,topicId:activeStudySession.topicId,subtopic:activeStudySession.subtopic,sessionType:activeStudySession.sessionType});
-    return;
-  }
-  if(action==='confirmStartStudySession'){
-    const subjectKey=document.getElementById('ss_subject').value;
-    const {topicId,topicName}=readTopicField('ss',subjectKey);
-    if(!topicName){alert('Please choose or enter a topic to study.'); return;}
-    const subtopic=document.getElementById('ss_subtopic').value.trim();
-    const sessionType=document.getElementById('ss_type').value;
-    beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType);
-    closeModal();
-    pomoStartPause(); // context is set — now actually start the timer
-    render();
-    return;
-  }
-  if(action==='confirmSwitchStudySession'){
-    const subjectKey=document.getElementById('ss_subject').value;
-    const {topicId,topicName}=readTopicField('ss',subjectKey);
-    if(!topicName){alert('Please choose or enter a topic to study.'); return;}
-    const subtopic=document.getElementById('ss_subtopic').value.trim();
-    const sessionType=document.getElementById('ss_type').value;
-    syncPomoFromClock(); // capture the very latest elapsed time before logging it
-    flushActiveStudySegment(); // log time-so-far under the OLD subject/topic before switching
-    beginActiveStudySession(subjectKey,topicId,topicName,subtopic,sessionType);
-    closeModal(); render();
-    return;
-  }
-  if(action==='endStudySession'){
-    if(!activeStudySession.active)return;
-    if(!confirm('End the current study session? Time so far will be logged under '+activeStudySession.subjectLabel+' · '+activeStudySession.topicName+'.'))return;
-    syncPomoFromClock(); // capture the very latest elapsed time before logging it
-    flushActiveStudySegment();
-    activeStudySession={active:false,subjectKey:'',subjectLabel:'',topicId:'',topicName:'',subtopic:'',sessionType:'Study',startedAt:''};
-    pomoReset();
-    savePomoState(); render();
-    return;
   }
   if(action==='setPomoPreset'){
     DB.meta.pomoWork=Number(d.work); DB.meta.pomoBreak=Number(d.break);
@@ -3085,7 +2034,6 @@ function afterRenderHooks(){
 
 /* ================= INIT ================= */
 loadDB();
-
 </script>
 </body>
 </html>
