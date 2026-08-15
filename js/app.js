@@ -46,7 +46,7 @@ const QUOTES=[
 "The streak isn't the goal. It's proof the goal is being worked on.",
 "Every question you get wrong today is one you won't miss in the exam hall."
 ];
-const DEFAULT_SUBJECT_COLORS=['#b3164f','#9c2861','#c2185b','#0f9d68','#c67c00','#7c3aed','#2563eb','#dc2626','#0891b2','#65a30d'];
+const DEFAULT_SUBJECT_COLORS=['#a855f7','#ec4899','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4','#f43f5e','#14b8a6','#eab308'];
 const DEFAULT_TOPIC_ICON='📘';
 const POMO_PRESETS=[[25,5],[30,5],[45,10],[50,10],[90,15]];
 // Earliest selectable date across all date pickers in the app. Fixed on purpose —
@@ -59,7 +59,7 @@ function defaultState(){
   const subjects={};
   Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
-    meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'maroon',
+    meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'violet',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
@@ -101,7 +101,7 @@ async function loadDB(){
     }
   }catch(e){ /* no existing key yet */ }
   if(DB.meta.dark)document.documentElement.classList.add('dark');
-  document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
+  document.documentElement.setAttribute('data-accent',DB.meta.accent||'violet');
   pomo.mode='Work';
   pomo.seconds=(DB.meta.pomoWork||25)*60;
   loadPomoState();
@@ -145,7 +145,7 @@ function importDataFromFile(input){
     const missing=Object.keys(DB.subjects).filter(k=>!savedOrder.includes(k));
     DB.subjectOrder=[...savedOrder,...missing];
     if(DB.meta.dark)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
-    document.documentElement.setAttribute('data-accent',DB.meta.accent||'maroon');
+    document.documentElement.setAttribute('data-accent',DB.meta.accent||'violet');
     clearInterval(pomo.interval);
     pomo.mode='Work'; pomo.seconds=(DB.meta.pomoWork||25)*60; pomo.running=false; studyTimer.running=false;
     savePomoState();
@@ -420,7 +420,7 @@ function renderDashboard(){
     </div>
   </div>
 
-  <div class="card" id="studySessionCard" style="margin-top:14px;">
+  <div class="card glass-card" id="studySessionCard" style="margin-top:14px;">
     <div class="flexbetween">
       <div class="label">Study Session</div>
       <span class="sub" id="studySessionMode">${pomo.mode==='Work'?'🎯 Study Session':'☕ Break'}</span>
@@ -435,6 +435,11 @@ function renderDashboard(){
       <label>Topic <select data-action="setPomoTopic" ${pomo.running||!pomo.subjectKey?'disabled':''}>
         <option value="">— none —</option>
         ${(DB.subjects[pomo.subjectKey]?.topics||[]).map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
+      </select></label>
+      <label>Subtopic <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
+      <label>Session Type <select data-action="setPomoSessionType" ${pomo.running?'disabled':''}>
+        <option value="Study" ${pomo.sessionType!=='Revision'?'selected':''}>🎯 Study Session</option>
+        <option value="Revision" ${pomo.sessionType==='Revision'?'selected':''}>🔁 Revision</option>
       </select></label>
     </div>
     <div class="pomo-controls">
@@ -953,7 +958,7 @@ function renderAnalytics(){
   </div>
   <div class="section-title"><h2>Study Heatmap</h2><span class="hint">Last 91 days</span></div>
   <div class="card">
-    <div class="heatmap">${days.map(d=>{const h=hoursOn(d);const op=h===0?0.06:Math.min(1,0.25+h/maxH*0.75);return `<div class="heatcell" title="${d}: ${h.toFixed(1)}h" style="background:rgba(179,22,79,${op});"></div>`;}).join('')}</div>
+    <div class="heatmap">${days.map(d=>{const h=hoursOn(d);const op=h===0?0.06:Math.min(1,0.25+h/maxH*0.75);return `<div class="heatcell" title="${d}: ${h.toFixed(1)}h" style="background:rgba(168,85,247,${op});"></div>`;}).join('')}</div>
   </div>
   <div class="section-title"><h2>Topic Completion Trend</h2></div>
   <div class="grid g3">
@@ -1083,8 +1088,8 @@ function renderStudyNotes(){
 /* ================= SETTINGS ================= */
 function renderSettingsPage(){
   const dark=document.documentElement.classList.contains('dark');
-  const accent=DB.meta.accent||'maroon';
-  const swatches=[['maroon','#b3164f'],['rose','#e91e63'],['berry','#9c2861'],['crimson','#b3212d']];
+  const accent=DB.meta.accent||'violet';
+  const swatches=[['violet','#a855f7'],['pink','#ec4899'],['blue','#3b82f6'],['green','#22c55e']];
   return `
   <div class="section-title"><h2>Appearance</h2></div>
   <div class="card">
@@ -1178,7 +1183,7 @@ function fmtHrsMin(hrs){const h=Math.floor(hrs);const m=Math.round((hrs-h)*60);r
    rendered. State is persisted to localStorage on every tick so it
    survives a page refresh or the tab being closed and reopened. */
 const POMO_LS_KEY='atlastrackit_pomo_state_v1';
-let pomo={seconds:25*60,running:false,mode:'Work',interval:null,subjectKey:'',topicId:''};
+let pomo={seconds:25*60,running:false,mode:'Work',interval:null,subjectKey:'',topicId:'',subtopic:'',sessionType:'Study'};
 let studyTimer={seconds:0,running:false}; // tracks total elapsed "Work" seconds today, feeds the dashboard ring
 function pomoSelectedTopic(){
   const key=pomo.subjectKey;
@@ -1191,7 +1196,7 @@ function savePomoState(){
     localStorage.setItem(POMO_LS_KEY,JSON.stringify({
       mode:pomo.mode,seconds:pomo.seconds,running:pomo.running,
       ts:Date.now(),studySeconds:studyTimer.seconds,studyDate:todayStr(),
-      subjectKey:pomo.subjectKey,topicId:pomo.topicId
+      subjectKey:pomo.subjectKey,topicId:pomo.topicId,subtopic:pomo.subtopic,sessionType:pomo.sessionType
     }));
   }catch(e){/* localStorage unavailable */}
 }
@@ -1207,6 +1212,8 @@ function loadPomoState(){
     studyTimer.seconds=Number(s.studySeconds)||0;
     pomo.subjectKey=s.subjectKey||'';
     pomo.topicId=s.topicId||'';
+    pomo.subtopic=s.subtopic||'';
+    pomo.sessionType=s.sessionType==='Revision'?'Revision':'Study';
     pomoSavedDate=s.studyDate||todayStr();
     if(pomo.running&&s.ts){
       // catch up for time elapsed while the page was closed/refreshed
@@ -1279,6 +1286,24 @@ function notifySessionEnd(nextMode){
   else if(Notification.permission!=='denied')Notification.requestPermission().then(p=>{if(p==='granted')fire();});
 }
 function pomoDurationSeconds(mode){return (mode==='Work'?(DB.meta.pomoWork||25):(DB.meta.pomoBreak||5))*60;}
+function logTopicRevision(topic){
+  if(!topic||topic.revisions>=5)return false;
+  topic.revisions++; topic.lastRevisionDate=todayStr();
+  if(topic.status==='Completed')topic.status='Revised';
+  return true;
+}
+function logCompletedWorkBlock(){
+  if(studyTimer.seconds<=0)return;
+  const topic=pomoSelectedTopic();
+  const isRevision=pomo.sessionType==='Revision';
+  DB.sessions.push({id:uid(),date:todayStr(),start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
+    subject:pomo.subjectKey||subjectKeys()[0]||'',topic:topic?topic.name:'General Study',subtopic:pomo.subtopic||'',
+    qSolved:0,qCorrect:0,qWrong:0,source:'Pomodoro timer',mood:'Okay',energy:'Medium',focus:3,distractions:'',
+    breakMin:0,revisionDone:isRevision,mockDone:false,wins:'',problems:'',tomorrow:'',quickEdit:true,pomoLogged:true});
+  if(isRevision&&topic)logTopicRevision(topic);
+  studyTimer.seconds=0;
+  scheduleSave();
+}
 function pomoTick(){
   checkDayRollover();
   pomo.seconds--;
@@ -1288,6 +1313,7 @@ function pomoTick(){
     const finishedMode=pomo.mode;
     const nextMode=finishedMode==='Work'?'Break':'Work';
     notifySessionEnd(nextMode);
+    if(finishedMode==='Work')logCompletedWorkBlock();
     if(DB.meta.pomoAutoTransition){
       pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
       studyTimer.running=(nextMode==='Work');
@@ -1300,13 +1326,43 @@ function pomoTick(){
   updateStudySessionUI();
   savePomoState();
 }
+function beginOrPauseStudySession(){
+  if(pomo.running){ pomoStartPause(); return; }
+  if(pomo.mode==='Break'){ pomoStartPause(); return; } // resuming a break needs no subject picker
+  if(studyTimer.seconds>0){ pomoStartPause(); return; } // resuming a paused, not-yet-logged work block
+  openStartSessionModal();
+}
+function openStartSessionModal(subjectKeyOverride){
+  const keys=subjectKeys();
+  const key=subjectKeyOverride||pomo.subjectKey||keys[0]||'';
+  const topics=(key&&DB.subjects[key])?DB.subjects[key].topics:[];
+  openModal(`<h3>Start Study Session</h3>
+  <p class="sub" style="margin:0 0 10px;">Pick what you're studying — starting will mark the topic In Progress, and the session is saved automatically once it's complete.</p>
+  <div class="formgrid" style="grid-template-columns:1fr;">
+    <label>Subject
+      <select id="ss_subject" data-action="refreshStartSessionModal">
+        ${keys.length===0?'<option value="">No subjects yet</option>':keys.map(k=>`<option value="${k}" ${key===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
+      </select>
+    </label>
+    <label>Topic
+      <select id="ss_topic">
+        <option value="">— none / general study —</option>
+        ${topics.map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
+        <option value="__new__">+ Add new topic…</option>
+      </select>
+    </label>
+    <label id="ss_newtopic_wrap" style="display:none;">New topic name <input type="text" id="ss_newtopic" placeholder="e.g. Thermodynamics"></label>
+    <label>Subtopic (optional) <input type="text" id="ss_subtopic" placeholder="e.g. Laws of Thermodynamics" value="${esc(pomo.subtopic||'')}"></label>
+  </div>
+  <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="confirmStartSession">Start Session</button></div>`);
+}
 function pomoStartPause(){
   pomo.running=!pomo.running;
   if(pomo.running){
     if(pomo.mode==='Work')studyTimer.running=true;
     pomo.interval=setInterval(pomoTick,1000);
     const topic=pomoSelectedTopic();
-    if(topic&&topic.status==='Not Started'){ topic.status='In Progress'; scheduleSave(); }
+    if(pomo.sessionType!=='Revision'&&topic&&topic.status==='Not Started'){ topic.status='In Progress'; scheduleSave(); }
   }else{
     clearInterval(pomo.interval); studyTimer.running=false;
   }
@@ -1374,7 +1430,10 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
   if(t.dataset.action==='setPomoSubject'){ pomo.subjectKey=t.value; pomo.topicId=''; savePomoState(); render(); }
+  if(t.id==='ss_topic'){ const w=document.getElementById('ss_newtopic_wrap'); if(w)w.style.display=(t.value==='__new__')?'flex':'none'; }
   if(t.dataset.action==='setPomoTopic'){ pomo.topicId=t.value; savePomoState(); }
+  if(t.dataset.action==='setPomoSubtopic'){ pomo.subtopic=t.value; savePomoState(); }
+  if(t.dataset.action==='setPomoSessionType'){ pomo.sessionType=t.value==='Revision'?'Revision':'Study'; savePomoState(); render(); }
   if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='togglePomoAuto'){ DB.meta.pomoAutoTransition=t.checked; scheduleSave(); }
@@ -1445,11 +1504,13 @@ function handleAction(action,btn){
     return;
   }
   if(action==='goSubjects'){currentTab='study'; currentSubtab.study='subjects'; openSubject=null; render(); return;}
+  if(action==='goRevision'){currentTab='study'; currentSubtab.study='revision'; openSubject=null; render(); return;}
+  if(action==='quickStartStudy'){ beginOrPauseStudySession(); currentTab='dashboard'; render(); return; }
   if(action==='openSubject'){openSubject=d.key; render(); return;}
   if(action==='closeSubject'){openSubject=null; render(); return;}
   if(action==='addRevision'){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
-    if(topic.revisions<5){topic.revisions++; topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; scheduleSave(); render();}
+    if(logTopicRevision(topic)){ scheduleSave(); render(); }
     return;
   }
   if(action==='openEditRevisions'){
@@ -1585,7 +1646,7 @@ function handleAction(action,btn){
     <div class="formgrid" style="grid-template-columns:1fr;">
       <label>Subject Name <input type="text" id="subjNameInput" value="${esc(subjLabel(d.key))}"></label>
       <label>Icon (emoji) <input type="text" id="subjIconInput" value="${esc(subjIcon(d.key))}" maxlength="4"></label>
-      <label>Accent Color <input type="color" id="subjColorInput" value="${subjColor(d.key)||'#b3164f'}" style="width:100%;height:36px;padding:2px;"></label>
+      <label>Accent Color <input type="color" id="subjColorInput" value="${subjColor(d.key)||'#a855f7'}" style="width:100%;height:36px;padding:2px;"></label>
     </div>
     <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveEditSubject" data-key="${d.key}">Save Changes</button></div>`);
     return;
@@ -1699,7 +1760,28 @@ function handleAction(action,btn){
   }
   if(action==='deleteVocab'){DB.notes.vocab=DB.notes.vocab.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
   /* ---- Study Session (Pomodoro) controls ---- */
-  if(action==='pomoStart'){ pomoStartPause(); return; }
+  if(action==='pomoStart'){ beginOrPauseStudySession(); return; }
+  if(action==='refreshStartSessionModal'){ openStartSessionModal(document.getElementById('ss_subject').value); return; }
+  if(action==='confirmStartSession'){
+    const subjKey=document.getElementById('ss_subject').value;
+    let topicVal=document.getElementById('ss_topic').value;
+    const subtopic=(document.getElementById('ss_subtopic').value||'').trim();
+    if(topicVal==='__new__'){
+      const name=(document.getElementById('ss_newtopic').value||'').trim();
+      if(name&&subjKey&&DB.subjects[subjKey]){
+        const nt=freshTopic(name);
+        DB.subjects[subjKey].topics.push(nt);
+        topicVal=nt.id;
+        scheduleSave();
+      }else topicVal='';
+    }
+    pomo.subjectKey=subjKey||''; pomo.topicId=topicVal||''; pomo.subtopic=subtopic;
+    savePomoState();
+    closeModal();
+    pomoStartPause();
+    render();
+    return;
+  }
   if(action==='pomoResetBtn'){
     if(!confirm('Reset the current Study Session timer?'))return;
     pomoReset(); return;
@@ -1785,8 +1867,8 @@ function afterRenderHooks(){
     const sorted=[...DB.mocks].sort((a,b)=>a.number-b.number);
     destroyChart('mockScoreChart'); destroyChart('mockAccChart');
     const ctx1=document.getElementById('mockScoreChart'); const ctx2=document.getElementById('mockAccChart');
-    if(ctx1)charts.mockScoreChart=new Chart(ctx1,{type:'line',data:{labels:sorted.map(m=>'M'+m.number),datasets:[{label:'Score',data:sorted.map(m=>m.score),borderColor:'#b3164f',backgroundColor:'rgba(179,22,79,.12)',tension:.3,fill:true}]},options:{plugins:{legend:{display:false},title:{display:true,text:'Score Improvement'}},scales:{y:{beginAtZero:true}}}});
-    if(ctx2)charts.mockAccChart=new Chart(ctx2,{type:'line',data:{labels:sorted.map(m=>'M'+m.number),datasets:[{label:'Accuracy %',data:sorted.map(m=>m.attempted?(m.correct/m.attempted*100).toFixed(1):0),borderColor:'#0f9d68',backgroundColor:'rgba(15,157,104,.12)',tension:.3,fill:true}]},options:{plugins:{legend:{display:false},title:{display:true,text:'Accuracy Trend'}},scales:{y:{beginAtZero:true,max:100}}}});
+    if(ctx1)charts.mockScoreChart=new Chart(ctx1,{type:'line',data:{labels:sorted.map(m=>'M'+m.number),datasets:[{label:'Score',data:sorted.map(m=>m.score),borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,.15)',tension:.3,fill:true}]},options:{plugins:{legend:{display:false},title:{display:true,text:'Score Improvement'}},scales:{y:{beginAtZero:true}}}});
+    if(ctx2)charts.mockAccChart=new Chart(ctx2,{type:'line',data:{labels:sorted.map(m=>'M'+m.number),datasets:[{label:'Accuracy %',data:sorted.map(m=>m.attempted?(m.correct/m.attempted*100).toFixed(1):0),borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.15)',tension:.3,fill:true}]},options:{plugins:{legend:{display:false},title:{display:true,text:'Accuracy Trend'}},scales:{y:{beginAtZero:true,max:100}}}});
   }
   if(currentTab==='study'&&currentSubtab.study==='analytics'){
     destroyChart('subjHoursChart'); destroyChart('weekHoursChart');
@@ -1797,7 +1879,7 @@ function afterRenderHooks(){
     const weeks=[...Array(8)].map((_,i)=>7*(7-i));
     const weekLabels=weeks.map((w,i)=>'W-'+(7-i));
     const weekData=weeks.map((w,i)=>{const from=w, to=i===7?0:weeks[i+1]; return hoursSince(from)-(to?hoursSince(to):0);});
-    if(ctx2)charts.weekHoursChart=new Chart(ctx2,{type:'bar',data:{labels:weekLabels,datasets:[{label:'Hours',data:weekData,backgroundColor:'#b3164f',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+    if(ctx2)charts.weekHoursChart=new Chart(ctx2,{type:'bar',data:{labels:weekLabels,datasets:[{label:'Hours',data:weekData,backgroundColor:'#8b5cf6',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
   }
 }
 

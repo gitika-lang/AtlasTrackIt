@@ -20,12 +20,18 @@ Just open `index.html` in a browser, or serve the folder with any static file se
 
 ## Changelog
 
-### Latest update
-- **Fixed: Upcoming Deadlines** now only shows incomplete goals due within the next 24 hours (previously it showed every non-completed goal regardless of date). Items still disappear automatically once marked Completed.
-- **Added: Timer → Subject/Topic progress.** The Study Session (Pomodoro) card now has Subject and Topic selectors. When a session is actually started, the selected topic is marked "In Progress" in the Subjects/Syllabus section — but only if it was "Not Started"; Completed/Revised/In Progress topics are left untouched. Works the same whether the session is later paused or completes normally.
-- **Simplified: Weekly Report.** The Weekly Review section (Goals → Reviews) now leads with 5 scannable summary stats (Total Study Hours, Study Days, Questions Solved, Revisions Completed, Weekly Goal Completion) followed by grouped detail cards (Subject Focus, Consistency & Recommendation). All existing calculations are unchanged — only the presentation was reorganized. Today's Summary, Monthly Review, and the Analytics page (charts, heatmap, pace meter, etc.) are untouched.
+### Latest update — visual/UI polish pass
+- **New "Aurora Study Desk" theme**: dark-first, colourful palette (violet/pink/blue/green) with slow-drifting blurred aurora glow in the background, a hand-drawn squiggle underline motif on section headers, refined shadows/gradients/spacing across cards, buttons, pills, badges, and the sidebar.
+- **New accent presets**: Settings → the 4 accent swatches are now Violet (default), Pink, Blue, Green — replacing the old maroon/rose/berry/crimson set. Chart colors, the heatmap, and default subject colors were refreshed to match.
+- **Subtle motion**: cards/sections fade+rise in on load with a light stagger, buttons/cards lift on hover, progress bars grow in, achievement badges pop when unlocked, checkboxes give a tactile pop on click. Everything settles once loaded — nothing loops or distracts while actively studying (the Pomodoro tick still only touches the timer display, not the whole page). All motion respects `prefers-reduced-motion`.
+- No data structures, calculations, timer/Pomodoro logic, revision/goals logic, or analytics/weekly-report calculations were changed — this was a CSS/presentation-layer pass plus a handful of cosmetic color-literal updates in `js/app.js` (chart colors, default palette, accent preset keys).
 
 ### Previous update
-- **Fixed: Today's Progress ring resetting when the Pomodoro timer was paused.** The ring, "Today's Goal" value, and "Study Session" total now always reflect total study time completed today, whether the timer is running, paused, or the page has been refreshed/reopened.
-- **Fixed: stale data carrying over into a new calendar day.** AtlasTrackIt now detects when the date changes — whether the app was closed and reopened on a new day, or left open across midnight — and automatically starts a fresh daily session. Only daily counters reset (today's progress, study time, questions, revision checklist); Total Study Hours, Streak, Subjects, Topics, Goals, Mock Tests, and History are never touched.
-- **Added: Study History.** Each completed day's stats (Goal Completion %, Study Time, Questions Solved, Revisions Completed) are now automatically saved. The Dashboard shows a "📅 Study History" card with yesterday's summary and a "View History" button that opens the full saved history.
+- **Fixed: Upcoming Deadlines** now only shows incomplete goals due within the next 24 hours. Items disappear automatically once marked Completed.
+- **Added: Timer → Subject/Topic progress.** Starting a Pomodoro session on a selected topic marks it "In Progress" (never downgrading Completed/Revised/In Progress topics).
+- **Simplified: Weekly Report** — reorganized into 5 headline stats plus grouped detail cards; all calculations unchanged.
+
+### Earlier update
+- **Fixed: Today's Progress ring resetting when the Pomodoro timer was paused.** Now always reflects total study time completed today.
+- **Fixed: stale data carrying over into a new calendar day.** Automatic daily rollover with Study History snapshots saved for every completed day.
+- **Added: Study History** card + full history view.
