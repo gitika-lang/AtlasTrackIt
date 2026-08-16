@@ -374,9 +374,6 @@ function renderDashboard(){
   const target=todayTarget();
   const isOverride=DB.dailyTargets[today]!==undefined&&DB.dailyTargets[today]!==null&&DB.dailyTargets[today]!=='';
   const th=todayStudyTime();
-  const tasks=DB.tasks[today]||[];
-  const doneCount=tasks.filter(t=>t.done).length;
-  const taskPct=tasks.length?doneCount/tasks.length*100:0;
   const quote=QUOTES[nowIST().getUTCDate()%QUOTES.length];
   return `
   <div class="grid g3">
@@ -436,24 +433,9 @@ function renderDashboard(){
     </div>
   </div>
 
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
-    <div class="card" style="text-align:center;">
-      <div class="label" style="margin-bottom:10px;">Today's Progress</div>
-      <div class="ring-wrap" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0))}<div class="ring-label"><b>${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
-    </div>
-    <div class="card">
-      <div class="flexbetween"><div class="label">Today's Tasks</div><span class="sub">${doneCount} / ${tasks.length} done</span></div>
-      <div class="bar" style="margin:8px 0 12px;"><span style="width:${taskPct}%"></span></div>
-      ${tasks.length===0?'<div class="emptystate">No tasks yet — add your first for today.</div>':
-      tasks.map(t=>`<div class="checkbox-row" style="justify-content:space-between;">
-        <label style="display:flex;align-items:center;gap:8px;flex:1;"><input type="checkbox" data-action="toggleTask" data-id="${t.id}" ${t.done?'checked':''}> <span style="${t.done?'text-decoration:line-through;color:var(--text-faint);':''}">${esc(t.text)}</span></label>
-        <button class="icon-only" data-action="deleteTask" data-id="${t.id}">🗑</button>
-      </div>`).join('')}
-      <div style="display:flex;gap:6px;margin-top:12px;">
-        <input type="text" id="newTaskInput" placeholder="e.g. Solve 100 Quant Questions" style="flex:1;">
-        <button class="btn sm" data-action="addTask">Add</button>
-      </div>
-    </div>
+  <div class="card" style="text-align:center;margin-top:14px;">
+    <div class="label" style="margin-bottom:10px;">Today's Progress</div>
+    <div class="ring-wrap" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0))}<div class="ring-label"><b>${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
   </div>
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
@@ -539,46 +521,43 @@ function renderDashboardRevisions(){
   const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tmr),'Next 7 Days':q.filter(r=>r.due>tmr&&r.due<=in7)};
   const custom=(DB.customRevisions||[]).slice().sort((a,b)=>a.due.localeCompare(b.due));
   return `
-  <div class="grid g2" style="align-items:start;">
-    <div class="card">
-      <div class="label" style="margin-bottom:2px;">🔁 Recommended</div>
-      <div class="sub" style="margin-bottom:10px;">Auto-scheduled from topics you've marked Completed (spaced repetition).</div>
-      <div style="max-height:340px;overflow-y:auto;">
-      ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet — complete some topics to build a revision schedule.</div>':
-      Object.keys(groups).map(g=>{
-        const items=groups[g];
+  <div class="card">
+    <div class="label" style="margin-bottom:2px;">🔁 Recommended</div>
+    <div class="sub" style="margin-bottom:10px;">Auto-scheduled from topics you've marked Completed (spaced repetition).</div>
+    <div style="max-height:280px;overflow-y:auto;">
+    ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet — complete some topics to build a revision schedule.</div>':
+    Object.keys(groups).map(g=>{
+      const items=groups[g];
+      if(items.length===0)return '';
+      return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
+      ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+        <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+          <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
+          <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
+        </label>
+      </div>`).join('')}`;
+    }).join('')}
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+    <div class="label" style="margin-bottom:2px;">📌 Manually Added & Scheduled</div>
+    <div class="sub" style="margin-bottom:10px;">Plan revisions or study sessions across the week. Link a topic so a revision counts toward that subject.</div>
+    <div style="max-height:280px;overflow-y:auto;">
+    ${custom.length===0?'<div class="emptystate">Nothing planned yet — use "+ Add / Schedule Item" to plan your week.</div>':
+    (()=>{
+      const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
+      return Object.keys(wgroups).map(g=>{
+        const items=wgroups[g];
         if(items.length===0)return '';
         return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-        ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+        ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
           <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-            <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
-            <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
+            <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
+            <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''}${c.topicId?' · linked topic (counts)':''} · due ${c.due}</span></span>
           </label>
+          <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
         </div>`).join('')}`;
-      }).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="label" style="margin-bottom:2px;">📌 Manually Added & Scheduled</div>
-      <div class="sub" style="margin-bottom:10px;">Plan revisions or study sessions across the week. Link a topic so a revision counts toward that subject.</div>
-      <div style="max-height:340px;overflow-y:auto;">
-      ${custom.length===0?'<div class="emptystate">Nothing planned yet — use "+ Add / Schedule Item" to plan your week.</div>':
-      (()=>{
-        const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
-        return Object.keys(wgroups).map(g=>{
-          const items=wgroups[g];
-          if(items.length===0)return '';
-          return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-          ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-            <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-              <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-              <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''}${c.topicId?' · linked topic (counts)':''} · due ${c.due}</span></span>
-            </label>
-            <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
-          </div>`).join('')}`;
-        }).join('');
-      })()}
-      </div>
+      }).join('');
+    })()}
     </div>
   </div>`;
 }
@@ -1658,7 +1637,7 @@ function handleAction(action,btn){
           ${subjectKeys().map(k=>`<optgroup label="${esc(subjLabel(k))}">${(DB.subjects[k].topics||[]).map(t=>`<option value="${k}|${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
         </select>
       </label>
-      <label>Topic / Item (used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
+      <label>Subtopic / Goal for Today (optional, used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
       <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
     </div>
     <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Save</button></div>`);
