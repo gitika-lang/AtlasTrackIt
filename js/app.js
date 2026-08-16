@@ -1,7 +1,11 @@
 /* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
-const todayStr=()=>new Date().toISOString().slice(0,10);
+const IST_OFFSET_MS=5.5*60*60*1000; // IST = UTC+5:30
+// Returns a Date object whose UTC getters/formatters (toISOString, getUTCDate, etc.)
+// read as current IST wall-clock time — independent of the device/server's own timezone.
+function nowIST(){return new Date(Date.now()+IST_OFFSET_MS);}
+const todayStr=()=>nowIST().toISOString().slice(0,10);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Storage adapter: uses the Claude artifact window.storage API when running
@@ -62,7 +66,8 @@ function defaultState(){
     meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'violet',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
-    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[]
+    notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[],
+    weeklyReports:[]
   };
 }
 let DB=defaultState();
@@ -82,6 +87,7 @@ async function loadDB(){
       DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
+      DB.weeklyReports=Array.isArray(parsed.weeklyReports)?parsed.weeklyReports:[];
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
         if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};
@@ -133,6 +139,7 @@ function importDataFromFile(input){
     DB.customRevisions=Array.isArray(parsed.customRevisions)?parsed.customRevisions:[];
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
+    DB.weeklyReports=Array.isArray(parsed.weeklyReports)?parsed.weeklyReports:[];
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
       const s=DB.subjects[k];
@@ -166,7 +173,7 @@ function allTopics(){let t=[];subjectKeys().forEach(k=>t.push(...DB.subjects[k].
 function totalHours(){return DB.sessions.reduce((s,x)=>s+Number(x.hours||0),0);}
 function hoursOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.hours||0),0);}
 function hoursSince(daysBack){
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-daysBack);
+  const cutoff=nowIST();cutoff.setUTCDate(cutoff.getUTCDate()-daysBack);
   return DB.sessions.filter(s=>new Date(s.date)>=cutoff).reduce((a,b)=>a+Number(b.hours||0),0);
 }
 function daysStudied(){return new Set(DB.sessions.map(s=>s.date)).size;}
@@ -175,8 +182,8 @@ function currentStreak(){
   let d=new Date(); let streak=0;
   // allow today to be empty without breaking streak calc from yesterday
   let cursor=new Date(todayStr());
-  if(!days.has(todayStr())){cursor.setDate(cursor.getDate()-1);}
-  while(days.has(cursor.toISOString().slice(0,10))){streak++;cursor.setDate(cursor.getDate()-1);}
+  if(!days.has(todayStr())){cursor.setUTCDate(cursor.getUTCDate()-1);}
+  while(days.has(cursor.toISOString().slice(0,10))){streak++;cursor.setUTCDate(cursor.getUTCDate()-1);}
   return streak;
 }
 function longestStreak(){
@@ -194,6 +201,7 @@ function daysRemaining(){return Math.max(0,365-daysElapsed());}
 function pctYear(){return Math.min(100,(daysElapsed()/365*100));}
 function syllabusPct(){const t=allTopics();if(!t.length)return 0;const done=t.filter(x=>x.status==='Completed'||x.status==='Revised').length;return done/t.length*100;}
 function revisionPct(){const t=allTopics();if(!t.length)return 0;const done=t.filter(x=>x.revisions>0).length;return done/t.length*100;}
+function missedGoals(){const today=todayStr();return DB.goals.filter(g=>g.deadline&&g.deadline<today&&g.status!=='Completed');}
 /* ---- effective daily target (per-day override falls back to default) ---- */
 function effectiveTargetFor(dateStr){
   const override=DB.dailyTargets[dateStr];
@@ -220,7 +228,7 @@ function revisionQueue(){
     if(t.status==='Completed'||t.status==='Revised'){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
-        const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
+        const due=new Date(base); due.setUTCDate(due.getUTCDate()+intervals[t.revisions]);
         out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
       }
     }
@@ -231,7 +239,7 @@ function revisionQueue(){
 function questionsOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.qSolved||0),0);}
 function questionsOnExcludingQuickEdit(dateStr){return DB.sessions.filter(s=>s.date===dateStr&&!s.quickEdit).reduce((a,b)=>a+Number(b.qSolved||0),0);}
 function questionsSince(daysBack){
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-daysBack);
+  const cutoff=nowIST();cutoff.setUTCDate(cutoff.getUTCDate()-daysBack);
   return DB.sessions.filter(s=>new Date(s.date)>=cutoff).reduce((a,b)=>a+Number(b.qSolved||0),0);
 }
 function totalQuestionsSolved(){return DB.sessions.reduce((a,b)=>a+Number(b.qSolved||0),0);}
@@ -260,14 +268,6 @@ function examReadiness(){
   else if(score>=50){label='Good';cls='med';}
   return {score,label,cls,syl,rev,mockPerf,consistency,ca};
 }
-/* ---- mistake progress ---- */
-function mistakeStats(){
-  const total=DB.errors.length, fixed=DB.errors.filter(e=>e.fixed).length, pending=total-fixed;
-  const byTopic={};
-  DB.errors.forEach(e=>{const key=(e.topic||'Unspecified')+' ('+subjLabel(e.subject)+')';byTopic[key]=(byTopic[key]||0)+1;});
-  const top5=Object.entries(byTopic).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  return {total,fixed,pending,pct:total?fixed/total*100:0,top5};
-}
 /* ---- smart daily review recommendations ---- */
 function dailyRecommendations(){
   const today=todayStr(); const out=[];
@@ -284,7 +284,7 @@ function dailyRecommendations(){
     const caPct=subjectStats('currentAffairs').pct;
     if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
   }
-  const dueTomorrow=revisionQueue().filter(r=>{const t=new Date();t.setDate(t.getDate()+1);return r.due===t.toISOString().slice(0,10);});
+  const dueTomorrow=revisionQueue().filter(r=>{const t=nowIST();t.setUTCDate(t.getUTCDate()+1);return r.due===t.toISOString().slice(0,10);});
   if(dueTomorrow.length)out.push(`Tomorrow prioritize revising ${dueTomorrow[0].name}.`);
   else{
     const weakest=allTopics().filter(t=>t.status!=='Completed'&&t.status!=='Revised').sort((a,b)=>a.confidence-b.confidence)[0];
@@ -305,9 +305,9 @@ const TABS=[
   {id:'settings',label:'Settings',ic:'⚙'}
 ];
 const SUBTABS={
-  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'revision',label:'Revision',ic:'🔁'},{key:'notes',label:'Notes & Formulas',ic:'✎'},{key:'analytics',label:'Analytics',ic:'📊'}],
-  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'habits',label:'Habits',ic:'✅'},{key:'reviews',label:'Reviews',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
-  mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'},{key:'errors',label:'Error Log',ic:'⚠'}]
+  study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'analytics',label:'Analytics',ic:'📊'}],
+  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'weekly',label:'Weekly Report',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
+  mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'}]
 };
 let currentTab='dashboard';
 let currentSubtab={study:'subjects',goals:'goals',mocks:'mocks'};
@@ -330,6 +330,9 @@ function render(){
   renderNav();
   document.getElementById('pageTitle').textContent=TABS.find(t=>t.id===currentTab).label;
   document.getElementById('sideStreak').textContent=currentStreak()+' day streak';
+  const streakEl=document.querySelector('.streakpill');
+  if(streakEl)streakEl.classList.toggle('streak-hot',currentStreak()>=7);
+  checkBadgeUnlocks();
   const view=document.getElementById('view');
   if(currentTab==='dashboard')view.innerHTML=renderDashboard();
   else if(currentTab==='study')view.innerHTML=renderStudyPage();
@@ -346,8 +349,6 @@ function renderStudyPage(){
   let content='';
   if(sub==='subjects')content=renderSubjects();
   else if(sub==='log')content=renderLog();
-  else if(sub==='revision')content=renderRevision();
-  else if(sub==='notes')content=renderStudyNotes();
   else if(sub==='analytics')content=renderAnalytics();
   return subnavHtml('study')+content;
 }
@@ -355,8 +356,7 @@ function renderGoalsPage(){
   const sub=currentSubtab.goals;
   let content='';
   if(sub==='goals')content=renderGoals();
-  else if(sub==='habits')content=renderHabits();
-  else if(sub==='reviews')content=renderReviews();
+  else if(sub==='weekly')content=renderWeeklyReport();
   else if(sub==='achievements')content=`<div class="section-title"><h2>Achievements</h2><span class="hint">Unlocked as you hit milestones</span></div>${renderBadges()}`;
   return subnavHtml('goals')+content;
 }
@@ -365,31 +365,10 @@ function renderMocksPage(){
   let content='';
   if(sub==='mocks')content=renderMocks();
   else if(sub==='pyq')content=renderPyq();
-  else if(sub==='errors')content=renderErrors();
   return subnavHtml('mocks')+content;
 }
 
 /* ================= DASHBOARD (daily home screen) ================= */
-function renderDueRevisionItems(dueToday){
-  const today=todayStr();
-  const customDue=(DB.customRevisions||[]).filter(c=>c.due<=today).sort((a,b)=>a.due.localeCompare(b.due));
-  const total=dueToday.length+customDue.length;
-  if(total===0)return '<div class="emptystate">Nothing due — great pacing.</div>';
-  const topicRows=dueToday.slice(0,10).map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-      <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum}</span></span>
-    </label>
-  </div>`).join('');
-  const customRows=customDue.slice(0,10).map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-    <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-      <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-      <span>${esc(c.text)} ${c.subject?`<span class="sub" style="color:var(--text-faint);">· ${esc(c.subject)}</span>`:''}${c.revNum?` <span class="sub" style="color:var(--text-faint);">· Rev ${esc(String(c.revNum))}</span>`:''}</span>
-    </label>
-    <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
-  </div>`).join('');
-  return `<div style="max-height:220px;overflow-y:auto;">${topicRows}${customRows}</div>`;
-}
 function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
@@ -398,8 +377,7 @@ function renderDashboard(){
   const tasks=DB.tasks[today]||[];
   const doneCount=tasks.filter(t=>t.done).length;
   const taskPct=tasks.length?doneCount/tasks.length*100:0;
-  const dueToday=revisionQueue().filter(r=>r.due<=today);
-  const quote=QUOTES[new Date().getDate()%QUOTES.length];
+  const quote=QUOTES[nowIST().getUTCDate()%QUOTES.length];
   return `
   <div class="grid g3">
     <div class="card stat">
@@ -480,32 +458,28 @@ function renderDashboard(){
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     <div class="card">
-      <div class="flexbetween" style="margin-bottom:8px;">
-        <div class="label">Due Revisions</div>
-        <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add Revision</button>
-      </div>
-      ${renderDueRevisionItems(dueToday)}
-    </div>
-    <div class="card">
       <div class="label" style="margin-bottom:10px;">Quick Progress Summary</div>
       <div class="grid g2" style="gap:10px;">
         <div class="sub">Syllabus<br><b style="color:var(--text);font-size:16px;">${syllabusPct().toFixed(0)}%</b></div>
         <div class="sub">Revision<br><b style="color:var(--text);font-size:16px;">${revisionPct().toFixed(0)}%</b></div>
-        <div class="sub">Current Streak<br><b style="color:var(--text);font-size:16px;">${currentStreak()} 🔥</b></div>
+        <div class="sub">Current Streak<br><b style="color:var(--text);font-size:16px;${currentStreak()>=7?'text-shadow:0 0 14px var(--accent-500);':''}">${currentStreak()} 🔥</b></div>
         <div class="sub">Total Hours<br><b style="color:var(--text);font-size:16px;">${totalHours().toFixed(1)}h</b></div>
       </div>
     </div>
-  </div>
-
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
     ${renderStudyHistoryCard()}
   </div>
+
+  <div class="section-title" style="margin-top:14px;">
+    <h2>Scheduler</h2>
+    <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add / Schedule Item</button>
+  </div>
+  ${renderDashboardRevisions()}
 
   <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
   `;
 }
 function renderStudyHistoryCard(){
-  const y=[...Array(1)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})[0];
+  const y=[...Array(1)].map((_,i)=>{const d=nowIST();d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})[0];
   const yEntry=(DB.history||[]).find(h=>h.date===y);
   return `
     <div class="card">
@@ -530,10 +504,10 @@ function ringSVG(pct){
     <circle class="ring-progress" cx="60" cy="60" r="${r}" stroke="var(--accent-600)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
   </svg>`;
 }
-function renderBadges(){
+function badgeList(){
   const qSolved=DB.sessions.reduce((a,b)=>a+Number(b.qSolved||0),0);
   const topicsDone=allTopics().filter(t=>t.status==='Completed'||t.status==='Revised').length;
-  const badges=[
+  return [
     {ic:'🔥',label:'7 Day Streak',unlocked:currentStreak()>=7||longestStreak()>=7},
     {ic:'🔥',label:'30 Day Streak',unlocked:longestStreak()>=30},
     {ic:'⏱',label:'100 Hours',unlocked:totalHours()>=100},
@@ -544,24 +518,69 @@ function renderBadges(){
     {ic:'🧪',label:'First Mock Test',unlocked:DB.mocks.length>=1},
     {ic:'🧪',label:'10 Mock Tests',unlocked:DB.mocks.length>=10},
   ];
+}
+function renderBadges(){
+  const badges=badgeList();
   return `<div class="badge-grid">${badges.map(b=>`<div class="badge ${b.unlocked?'unlocked':''}"><span class="bic">${b.ic}</span>${b.label}</div>`).join('')}</div>`;
 }
 
-/* ================= REVISION CALENDAR ================= */
-function renderRevision(){
+/* ================= REVISIONS (Dashboard) =================
+   Merges what used to be Study > Revision (the auto spaced-repetition queue)
+   with the "Manually Added / Scheduled" custom list. A custom entry can
+   optionally be linked to a real tracked topic — completing a linked entry
+   calls logTopicRevision() on that topic, the same function the spaced-
+   repetition queue uses, so it counts toward that subject's revision stats
+   exactly like an auto-recommended revision would. */
+function renderDashboardRevisions(){
   const q=revisionQueue();
   const today=todayStr();
-  const tmr=new Date();tmr.setDate(tmr.getDate()+1);const tomorrowStr=tmr.toISOString().slice(0,10);
-  const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tomorrowStr),'Next 7 Days':q.filter(r=>r.due>tomorrowStr&&r.due<=new Date(Date.now()+7*86400000).toISOString().slice(0,10))};
-  return Object.keys(groups).map(g=>{
-    const items=groups[g];
-    return `<div class="section-title"><h2>${g}</h2><span class="hint">${items.length} due</span></div>
-    <div class="card">${items.length===0?'<div class="emptystate">Nothing here.</div>':
-    `<table><thead><tr><th>Topic</th><th>Subject</th><th>Revision #</th><th>Due</th><th></th></tr></thead><tbody>
-    ${items.map(r=>`<tr><td>${esc(r.name)}</td><td>${esc(r.subject)}</td><td>Rev ${r.revNum}</td><td>${r.due}</td>
-    <td><button class="btn sm" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}">Mark Revised</button></td></tr>`).join('')}
-    </tbody></table>`}</div>`;
-  }).join('');
+  const tmr=addDaysStr(today,1);
+  const in7=addDaysStr(today,7);
+  const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tmr),'Next 7 Days':q.filter(r=>r.due>tmr&&r.due<=in7)};
+  const custom=(DB.customRevisions||[]).slice().sort((a,b)=>a.due.localeCompare(b.due));
+  return `
+  <div class="grid g2" style="align-items:start;">
+    <div class="card">
+      <div class="label" style="margin-bottom:2px;">🔁 Recommended</div>
+      <div class="sub" style="margin-bottom:10px;">Auto-scheduled from topics you've marked Completed (spaced repetition).</div>
+      <div style="max-height:340px;overflow-y:auto;">
+      ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet — complete some topics to build a revision schedule.</div>':
+      Object.keys(groups).map(g=>{
+        const items=groups[g];
+        if(items.length===0)return '';
+        return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
+        ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+          <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+            <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
+            <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
+          </label>
+        </div>`).join('')}`;
+      }).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:2px;">📌 Manually Added & Scheduled</div>
+      <div class="sub" style="margin-bottom:10px;">Plan revisions or study sessions across the week. Link a topic so a revision counts toward that subject.</div>
+      <div style="max-height:340px;overflow-y:auto;">
+      ${custom.length===0?'<div class="emptystate">Nothing planned yet — use "+ Add / Schedule Item" to plan your week.</div>':
+      (()=>{
+        const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
+        return Object.keys(wgroups).map(g=>{
+          const items=wgroups[g];
+          if(items.length===0)return '';
+          return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
+          ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+            <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+              <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
+              <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''}${c.topicId?' · linked topic (counts)':''} · due ${c.due}</span></span>
+            </label>
+            <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
+          </div>`).join('')}`;
+        }).join('');
+      })()}
+      </div>
+    </div>
+  </div>`;
 }
 
 /* ================= SUBJECTS ================= */
@@ -575,7 +594,7 @@ function renderSubjects(){
   ${subjectKeys().map(k=>{
     const st=subjectStats(k);
     const col=subjColor(k);
-    return `<div class="card subjectcard" draggable="true" data-subj-drag="${k}" data-action="openSubject" data-key="${k}" style="${col?`border-top:3px solid ${col};`:''}">
+    return `<div class="card subjectcard" draggable="true" data-subj-drag="${k}" data-action="openSubject" data-key="${k}" style="${col?`border-top:3px solid ${col};background:linear-gradient(180deg,${col}17,var(--card) 65%);`:''}">
       <div class="flexbetween"><h3 style="margin:0;font-size:14.5px;">${subjIcon(k)} ${esc(subjLabel(k))}</h3><span class="tag ${DB.subjects[k].priority==='High'?'high':DB.subjects[k].priority==='Low'?'low':'med'}">${DB.subjects[k].priority}</span></div>
       <div class="bar" style="margin-top:10px;"><span style="width:${st.pct}%${col?`;background:${col};`:''}"></span></div>
       <div class="sub" style="margin-top:4px;">${st.completed}/${st.total} topics · ${st.pct.toFixed(0)}%</div>
@@ -732,9 +751,11 @@ function renderUpcomingDeadlines(){
   upcoming.map(g=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>${esc(g.text)} <span class="sub" style="color:var(--text-faint);">· ${g.type}</span></span><span class="tag ${g.priority==='High'?'high':g.priority==='Low'?'low':'med'}">${g.deadline}</span></div>`).join('')}
   </div>`;
 }
+let goalTypeFilter='All';
 function renderGoals(){
   ensureGoalForm(); const f=formTemp.goal;
   const types=['Yearly','Monthly','Weekly','Daily'];
+  const filterTypes=goalTypeFilter==='All'?types:[goalTypeFilter];
   return `
   <div class="section-title"><h2>Exam Readiness</h2></div>
   ${renderReadinessCard()}
@@ -751,7 +772,11 @@ function renderGoals(){
     </div>
     <button class="btn" data-action="saveGoal">Add Target</button>
   </div>
-  ${types.map(ty=>{
+  <div class="section-title"><h2>Your Goals</h2><span class="hint">${DB.goals.length} total</span></div>
+  <div class="tabsrow">
+    ${['All',...types].map(t=>`<button class="${goalTypeFilter===t?'active':''}" data-action="setGoalTypeFilter" data-type="${t}">${t}${t!=='All'?' ('+DB.goals.filter(g=>g.type===t).length+')':''}</button>`).join('')}
+  </div>
+  ${filterTypes.map(ty=>{
     const items=DB.goals.filter(g=>g.type===ty);
     return `<div class="section-title"><h2>${ty} Goals</h2><span class="hint">${items.length} active</span></div>
     <div class="card">${items.length===0?'<div class="emptystate">No '+ty.toLowerCase()+' goals yet.</div>':`
@@ -763,32 +788,6 @@ function renderGoals(){
     </tbody></table>`}</div>`;
   }).join('')}
   `;
-}
-
-/* ================= HABITS ================= */
-function renderHabits(){
-  const today=todayStr();
-  const h=DB.habits[today]||{};
-  const last7=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return d.toISOString().slice(0,10);}).reverse();
-  const weeklyAvg=last7.reduce((a,d)=>a+habitScore(d),0)/7;
-  return `
-  <div class="grid g2">
-    <div class="card">
-      <div class="label" style="margin-bottom:8px;">Today's Habits — ${today}</div>
-      ${HABITS.map(hb=>`<div class="checkbox-row"><input type="checkbox" id="hab_${hb.replace(/\\W/g,'')}" data-action="toggleHabit" data-habit="${esc(hb)}" ${h[hb]?'checked':''}> ${esc(hb)}</div>`).join('')}
-    </div>
-    <div class="card">
-      <div class="label">Daily Score</div>
-      <div class="value" style="font-size:28px;">${habitScore(today).toFixed(0)}%</div>
-      <div class="bar"><span style="width:${habitScore(today)}%"></span></div>
-      <div class="label" style="margin-top:16px;">Weekly Habit %</div>
-      <div class="value" style="font-size:22px;">${weeklyAvg.toFixed(0)}%</div>
-      <div style="display:flex;gap:4px;margin-top:8px;align-items:flex-end;height:60px;">
-      ${last7.map(d=>`<div style="flex:1;background:var(--accent-600);opacity:${0.3+habitScore(d)/150};height:${Math.max(6,habitScore(d))}%;border-radius:4px 4px 0 0;" title="${d}: ${habitScore(d).toFixed(0)}%"></div>`).join('')}
-      </div>
-      <div class="sub" style="margin-top:4px;">Last 7 days</div>
-    </div>
-  </div>`;
 }
 
 /* ================= MOCKS ================= */
@@ -895,53 +894,21 @@ function renderPyq(){
   </div>`;
 }
 
-/* ================= ERROR LOG ================= */
-function ensureErrorForm(){if(!formTemp.error)formTemp.error={question:'',subject:subjectKeys()[0]||'',topic:'',why:'',concept:'',revisionNeeded:true,fixed:false};}
-function renderErrors(){
-  ensureErrorForm(); const f=formTemp.error;
-  const ms=mistakeStats();
-  return `
-  <div class="grid g4">
-    <div class="card stat"><div class="label">Total Mistakes</div><div class="value">${ms.total}</div></div>
-    <div class="card stat"><div class="label">Fixed</div><div class="value">${ms.fixed}</div></div>
-    <div class="card stat"><div class="label">Pending</div><div class="value">${ms.pending}</div></div>
-    <div class="card stat"><div class="label">Resolution %</div><div class="value">${ms.pct.toFixed(0)}%</div></div>
-  </div>
-  <div class="card" style="margin-top:12px;"><div class="bar"><span style="width:${ms.pct}%"></span></div></div>
-  <div class="section-title"><h2>Top 5 Topics with Most Mistakes</h2></div>
-  <div class="card">${ms.top5.length===0?'<div class="emptystate">Not enough data yet.</div>':
-  ms.top5.map(t=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span>${esc(t[0])}</span><span class="tag high">${t[1]}</span></div>`).join('')}
-  </div>
-  <div class="section-title"><h2>Add to Mistake Notebook</h2></div>
-  <div class="card">
-    <div class="label" style="margin-bottom:10px;">New Entry</div>
-    <div class="formgrid">
-      <label>Question <input type="text" id="e_question" value="${esc(f.question)}"></label>
-      <label>Subject <select id="e_subject">${subjectKeys().map(k=>`<option value="${k}" ${f.subject===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}</select></label>
-      <label>Topic <input type="text" id="e_topic" value="${esc(f.topic)}"></label>
-      <label style="flex-direction:row;align-items:center;gap:6px;">Revision needed <input type="checkbox" id="e_revisionNeeded" ${f.revisionNeeded?'checked':''}></label>
-      <label>Why Wrong <textarea id="e_why">${esc(f.why)}</textarea></label>
-      <label>Correct Concept <textarea id="e_concept">${esc(f.concept)}</textarea></label>
-    </div>
-    <button class="btn" data-action="saveError">Add Entry</button>
-  </div>
-  <div class="section-title"><h2>Mistake Notebook</h2><span class="hint">${DB.errors.length} entries</span></div>
-  <div class="card" style="overflow-x:auto;">
-  ${DB.errors.length===0?'<div class="emptystate">No mistakes logged yet — good, but stay honest with yourself.</div>':`
-  <table><thead><tr><th>Question</th><th>Subject</th><th>Topic</th><th>Fixed?</th><th></th></tr></thead><tbody>
-  ${DB.errors.map(e=>`<tr><td style="max-width:220px;">${esc(e.question)}</td><td>${esc(subjLabel(e.subject))}</td><td>${esc(e.topic)}</td>
-  <td><input type="checkbox" data-action="toggleErrorFixed" data-id="${e.id}" ${e.fixed?'checked':''}></td>
-  <td><button class="icon-only" data-action="deleteError" data-id="${e.id}">🗑</button></td></tr>`).join('')}
-  </tbody></table>`}
-  </div>`;
-}
-
 /* ================= ANALYTICS ================= */
 function renderAnalytics(){
-  const days=[...Array(91)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(90-i));return d.toISOString().slice(0,10);});
+  const days=[...Array(91)].map((_,i)=>{const d=nowIST();d.setUTCDate(d.getUTCDate()-(90-i));return d.toISOString().slice(0,10);});
   const maxH=Math.max(1,...days.map(d=>hoursOn(d)));
   const p=paceMeter();
+  const mg=missedGoals();
   return `
+  <div class="section-title"><h2>Key Numbers</h2><span class="hint">At a glance</span></div>
+  <div class="grid g4">
+    <div class="card stat"><div class="label">Total Hours (all time)</div><div class="value">${totalHours().toFixed(1)}h</div></div>
+    <div class="card stat"><div class="label">Consistency (91d)</div><div class="value">${(days.filter(d=>hoursOn(d)>0).length/91*100).toFixed(0)}%</div></div>
+    <div class="card stat"><div class="label">Avg Daily Study</div><div class="value">${(totalHours()/Math.max(1,daysElapsed())).toFixed(2)}h</div></div>
+    <div class="card stat"><div class="label">Days with Zero Study</div><div class="value">${daysElapsed()-daysStudied()}</div></div>
+  </div>
+
   <div class="section-title"><h2>Study Pace Meter</h2><span class="hint">Day ${daysElapsed()} of 365</span></div>
   <div class="card">
     <div class="flexbetween"><div class="value" style="font-size:20px;">${p.ic} ${p.status}</div><span class="tag ${p.cls}">${p.gap>=0?'+':''}${p.gap} topics</span></div>
@@ -951,29 +918,178 @@ function renderAnalytics(){
       <div class="sub">Gap<br><b style="color:var(--text);">${p.gap>=0?'+':''}${p.gap}</b></div>
     </div>
   </div>
-  <div class="section-title"><h2>Charts</h2></div>
+
+  <div class="section-title"><h2>Goals</h2><span class="hint">Missed / overdue, all time</span></div>
+  <div class="card">
+    ${mg.length===0?'<div class="emptystate">No missed goals — everything on track.</div>':`
+    <div class="flexbetween" style="margin-bottom:8px;"><div class="value" style="font-size:20px;">${mg.length} missed</div><span class="tag high">Overdue</span></div>
+    <div class="sub" style="line-height:1.9;font-size:12.5px;">${mg.slice(0,6).map(g=>'⚠ '+esc(g.text)+' <span style="color:var(--text-faint);">(was due '+g.deadline+')</span>').join('<br>')}</div>`}
+  </div>
+
+  <div class="section-title"><h2>Trends</h2><span class="hint">Where your hours are going</span></div>
   <div class="grid g2">
     <div class="card"><div class="label" style="margin-bottom:8px;">Hours per Subject</div><canvas id="subjHoursChart" height="200"></canvas></div>
     <div class="card"><div class="label" style="margin-bottom:8px;">Hours per Week (last 8 weeks)</div><canvas id="weekHoursChart" height="200"></canvas></div>
   </div>
+
   <div class="section-title"><h2>Study Heatmap</h2><span class="hint">Last 91 days</span></div>
   <div class="card">
     <div class="heatmap">${days.map(d=>{const h=hoursOn(d);const op=h===0?0.06:Math.min(1,0.25+h/maxH*0.75);return `<div class="heatcell" title="${d}: ${h.toFixed(1)}h" style="background:rgba(168,85,247,${op});"></div>`;}).join('')}</div>
   </div>
-  <div class="section-title"><h2>Topic Completion Trend</h2></div>
+
+  <div class="section-title"><h2>Subject Progress</h2><span class="hint">Syllabus completion by subject</span></div>
   <div class="grid g3">
-    ${subjectKeys().map(k=>{const st=subjectStats(k);return `<div class="card"><div class="label">${esc(subjLabel(k))}</div><div class="bar"><span style="width:${st.pct}%"></span></div><div class="sub">${st.pct.toFixed(0)}% complete</div></div>`;}).join('')}
-  </div>
-  <div class="section-title"><h2>Consistency</h2></div>
-  <div class="grid g3">
-    <div class="card stat"><div class="label">Consistency % (91d)</div><div class="value">${(days.filter(d=>hoursOn(d)>0).length/91*100).toFixed(0)}%</div></div>
-    <div class="card stat"><div class="label">Avg Daily Study</div><div class="value">${(totalHours()/Math.max(1,daysElapsed())).toFixed(2)}h</div></div>
-    <div class="card stat"><div class="label">Days with Zero Study</div><div class="value">${daysElapsed()-daysStudied()}</div></div>
+    ${subjectKeys().map(k=>{const st=subjectStats(k);return `<div class="card"><div class="label">${esc(subjLabel(k))}</div><div class="value" style="font-size:18px;">${st.pct.toFixed(0)}%</div><div class="bar"><span style="width:${st.pct}%"></span></div></div>`;}).join('')}
   </div>`;
 }
 
-/* ================= REVIEWS ================= */
-function renderReviews(){
+/* ================= WEEKLY REPORT (merges the old Weekly Report + Reviews systems) =================
+   A report period always runs Sunday → Saturday. computeWeekStats() is the single
+   source of truth for a week's numbers — it's used for the live current week, for
+   auto-archived completed weeks, and for manual snapshots, so all three read the
+   same underlying session/topic/mock data and never drift apart. */
+function weekStartOf(dateStr){
+  const d=new Date(dateStr+'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate()-d.getUTCDay()); // getUTCDay(): 0=Sunday
+  return d.toISOString().slice(0,10);
+}
+function addDaysStr(dateStr,n){
+  const d=new Date(dateStr+'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function weekEndOf(weekStart){return addDaysStr(weekStart,6);}
+function weekDates(weekStart){return [...Array(7)].map((_,i)=>addDaysStr(weekStart,i));}
+
+function computeWeekStats(weekStart){
+  const days=weekDates(weekStart);
+  const daySet=new Set(days);
+  const sessions=DB.sessions.filter(s=>daySet.has(s.date));
+  const hours=sessions.reduce((a,b)=>a+Number(b.hours||0),0);
+  const studyDays=new Set(sessions.map(s=>s.date)).size;
+  const questions=sessions.reduce((a,b)=>a+Number(b.qSolved||0),0);
+  const qCorrect=sessions.reduce((a,b)=>a+Number(b.qCorrect||0),0);
+  const revisions=allTopics().filter(t=>t.lastRevisionDate&&daySet.has(t.lastRevisionDate)).length;
+  const bySubj={};
+  sessions.forEach(s=>{bySubj[s.subject]=(bySubj[s.subject]||0)+Number(s.hours||0);});
+  const subjectBreakdown=subjectKeys().map(k=>({key:k,label:subjLabel(k),hours:+(bySubj[k]||0).toFixed(2)}));
+  const touchedKeys=subjectKeys().filter(k=>bySubj[k]>0);
+  const neglectedKeys=subjectKeys().filter(k=>!bySubj[k]);
+  const sortedTouched=[...touchedKeys].sort((a,b)=>bySubj[b]-bySubj[a]);
+  const strongestKey=sortedTouched[0]||null;
+  const byTopic={};
+  sessions.forEach(s=>{if(s.topic)byTopic[s.topic]=(byTopic[s.topic]||0)+Number(s.hours||0);});
+  const topTopics=Object.keys(byTopic).sort((a,b)=>byTopic[b]-byTopic[a]).slice(0,3);
+  const targetTotal=days.reduce((a,d)=>a+effectiveTargetFor(d),0);
+  const goalPct=targetTotal?Math.min(100,Math.round(hours/targetTotal*100)):0;
+  const mocks=DB.mocks.filter(m=>daySet.has(m.date));
+  const missedGoalsThisWeek=DB.goals.filter(g=>g.deadline&&daySet.has(g.deadline)&&g.status!=='Completed');
+  // "Preparation balance": how evenly time was spread across every subject this
+  // week (100% = perfectly even, lower = skewed toward one or two subjects).
+  const allHrsArr=subjectKeys().map(k=>bySubj[k]||0);
+  const meanAll=allHrsArr.length?allHrsArr.reduce((a,b)=>a+b,0)/allHrsArr.length:0;
+  const variance=allHrsArr.length?allHrsArr.reduce((a,b)=>a+Math.pow(b-meanAll,2),0)/allHrsArr.length:0;
+  const balance=meanAll>0?Math.max(0,Math.round(100-(Math.sqrt(variance)/meanAll)*100)):0;
+  return {
+    weekStart,weekEnd:weekEndOf(weekStart),
+    hours:+hours.toFixed(2),studyDays,sessionsCount:sessions.length,
+    questions,accuracy:questions?Math.round(qCorrect/questions*100):null,
+    revisions,subjectBreakdown,
+    neglected:neglectedKeys.map(k=>subjLabel(k)),
+    strongest:strongestKey?subjLabel(strongestKey):null,
+    topTopics,goalPct,
+    mocksCount:mocks.length,
+    mockAvgScore:mocks.length?+(mocks.reduce((a,b)=>a+Number(b.score||0),0)/mocks.length).toFixed(1):null,
+    balance,consistencyPct:Math.round(studyDays/7*100),
+    missedGoalsCount:missedGoalsThisWeek.length,
+    missedGoalsList:missedGoalsThisWeek.slice(0,5).map(g=>g.text)
+  };
+}
+function weekComparison(cur,prev){
+  const delta=key=>{
+    const c=cur[key]||0,p=prev[key]||0,diff=+(c-p).toFixed(2);
+    return {cur:c,prev:p,diff,pct:p?Math.round(diff/p*100):(c>0?100:0)};
+  };
+  return {hours:delta('hours'),questions:delta('questions'),revisions:delta('revisions'),goalPct:delta('goalPct')};
+}
+/* Renders one week's Summary + Review body. Shared by the live current-week view
+   and by archived/snapshot detail views — same data shape, same layout. */
+function renderWeekStatsHTML(stats,cmp){
+  const arrow=n=>n>0?'▲':n<0?'▼':'—';
+  const dcolor=n=>n>0?'color:var(--green);':n<0?'color:var(--red);':'';
+  return `
+  <div class="section-title"><h2>Weekly Summary</h2><span class="hint">${stats.weekStart} → ${stats.weekEnd}</span></div>
+  <div class="grid g4">
+    <div class="card stat"><div class="label">Total Study Hours</div><div class="value">${stats.hours.toFixed(1)}h</div></div>
+    <div class="card stat"><div class="label">Study Days</div><div class="value">${stats.studyDays} / 7</div></div>
+    <div class="card stat"><div class="label">Study Sessions</div><div class="value">${stats.sessionsCount}</div></div>
+    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${stats.questions}</div></div>
+  </div>
+  <div class="grid g4" style="margin-top:12px;">
+    <div class="card stat"><div class="label">Revisions Completed</div><div class="value">${stats.revisions}</div></div>
+    <div class="card stat"><div class="label">Weekly Goal</div><div class="value">${stats.goalPct}%</div></div>
+    <div class="card stat"><div class="label">Mock Tests</div><div class="value">${stats.mocksCount}</div></div>
+    <div class="card stat"><div class="label">Accuracy</div><div class="value">${stats.accuracy!==null?stats.accuracy+'%':'—'}</div></div>
+  </div>
+  <div class="section-title"><h2>Subject Breakdown</h2></div>
+  <div class="grid g3">
+    ${stats.subjectBreakdown.map(s=>`<div class="card"><div class="label">${esc(s.label)}</div><div class="value" style="font-size:18px;">${s.hours.toFixed(1)}h</div></div>`).join('')}
+  </div>
+
+  <div class="section-title"><h2>Weekly Review</h2><span class="hint">Balance & insights</span></div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Preparation Balance</div>
+      <div class="value" style="font-size:24px;">${stats.balance}%</div>
+      <div class="bar"><span style="width:${stats.balance}%"></span></div>
+      <div class="sub" style="margin-top:6px;">How evenly study time was spread across subjects this week.</div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Consistency</div>
+      <div class="value" style="font-size:24px;">${stats.consistencyPct}%</div>
+      <div class="bar"><span style="width:${stats.consistencyPct}%"></span></div>
+      <div class="sub" style="margin-top:6px;">${stats.studyDays} of 7 days had logged study time.</div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Subject Focus</div>
+      <div class="sub" style="line-height:1.9;font-size:12.5px;">
+        Most studied subject: <b style="color:var(--text);">${stats.strongest||'—'}</b><br>
+        Most studied topics: <b style="color:var(--text);">${stats.topTopics.length?stats.topTopics.join(', '):'—'}</b><br>
+        Subjects needing attention: <b style="color:var(--text);">${stats.neglected.length?stats.neglected.join(', '):'None — solid coverage'}</b>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Revision Performance</div>
+      <div class="sub" style="line-height:1.9;font-size:12.5px;">
+        Revisions completed this week: <b style="color:var(--text);">${stats.revisions}</b><br>
+        All-time revision completion: <b style="color:var(--text);">${revisionPct().toFixed(0)}%</b><br>
+        Recommendation: ${stats.neglected.length?'Rotate in '+esc(stats.neglected[0])+' before the week ends.':'Maintain current rotation, add a mock test.'}
+      </div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    <div class="card">
+      <div class="label" style="margin-bottom:8px;">Goals — This Week</div>
+      <div class="sub" style="line-height:1.9;font-size:12.5px;">
+        ${stats.missedGoalsCount>0?`Missed / overdue: <b style="color:var(--red,#ef4444);">${stats.missedGoalsCount}</b><br>${stats.missedGoalsList.map(t=>'⚠ '+esc(t)).join('<br>')}`:'No goals were missed this week — nice work.'}
+      </div>
+    </div>
+  </div>
+  ${cmp?`
+  <div class="section-title"><h2>Week-over-Week Comparison</h2><span class="hint">vs previous week</span></div>
+  <div class="card" style="overflow-x:auto;">
+  <table><thead><tr><th>Metric</th><th>Previous Week</th><th>This Week</th><th>Change</th></tr></thead><tbody>
+    <tr><td>Study Hours</td><td>${cmp.hours.prev.toFixed(1)}h</td><td>${cmp.hours.cur.toFixed(1)}h</td><td style="${dcolor(cmp.hours.diff)}">${arrow(cmp.hours.diff)} ${Math.abs(cmp.hours.diff).toFixed(1)}h</td></tr>
+    <tr><td>Questions Solved</td><td>${cmp.questions.prev}</td><td>${cmp.questions.cur}</td><td style="${dcolor(cmp.questions.diff)}">${arrow(cmp.questions.diff)} ${Math.abs(cmp.questions.diff)}</td></tr>
+    <tr><td>Revisions Completed</td><td>${cmp.revisions.prev}</td><td>${cmp.revisions.cur}</td><td style="${dcolor(cmp.revisions.diff)}">${arrow(cmp.revisions.diff)} ${Math.abs(cmp.revisions.diff)}</td></tr>
+    <tr><td>Weekly Goal</td><td>${cmp.goalPct.prev}%</td><td>${cmp.goalPct.cur}%</td><td style="${dcolor(cmp.goalPct.diff)}">${arrow(cmp.goalPct.diff)} ${Math.abs(cmp.goalPct.diff)}%</td></tr>
+  </tbody></table>
+  </div>`:''}
+  `;
+}
+function renderWeeklyReport(){
   const today=todayStr();
   const todaySessions=DB.sessions.filter(s=>s.date===today);
   const th=todaySessions.reduce((a,b)=>a+Number(b.hours||0),0);
@@ -982,29 +1098,22 @@ function renderReviews(){
   const acc=qS?(qC/qS*100).toFixed(0)+'%':'—';
   const weak=allTopics().filter(t=>t.confidence<=2).map(t=>t.name).slice(0,5);
 
-  const now=new Date(); const weekAgo=new Date(); weekAgo.setDate(now.getDate()-7);
-  const weekSessions=DB.sessions.filter(s=>new Date(s.date)>=weekAgo);
-  const weekHours=weekSessions.reduce((a,b)=>a+Number(b.hours||0),0);
-  const bySubjWeek={}; weekSessions.forEach(s=>{bySubjWeek[s.subject]=(bySubjWeek[s.subject]||0)+Number(s.hours||0);});
-  const neglected=subjectKeys().filter(k=>!bySubjWeek[k]);
-  const sortedSubj=Object.keys(bySubjWeek).sort((a,b)=>bySubjWeek[b]-bySubjWeek[a]);
-  const strongest=sortedSubj[0]?subjLabel(sortedSubj[0]):'—';
-  const weakest=neglected[0]?subjLabel(neglected[0]):(sortedSubj[sortedSubj.length-1]?subjLabel(sortedSubj[sortedSubj.length-1]):'—');
-  const weekDaysStudied=new Set(weekSessions.map(s=>s.date)).size;
-  const weekQuestions=weekSessions.reduce((a,b)=>a+Number(b.qSolved||0),0);
-  const weekRevisions=allTopics().filter(t=>t.lastRevisionDate&&new Date(t.lastRevisionDate)>=weekAgo).length;
-  const last7Days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10);});
-  const weekTargetTotal=last7Days.reduce((a,d)=>a+effectiveTargetFor(d),0);
-  const weekGoalPct=weekTargetTotal?Math.min(100,Math.round(last7Days.reduce((a,d)=>a+hoursOn(d),0)/weekTargetTotal*100)):0;
+  const curWeekStart=weekStartOf(today);
+  const curStats=computeWeekStats(curWeekStart);
+  const prevStats=computeWeekStats(addDaysStr(curWeekStart,-7));
+  const cmp=weekComparison(curStats,prevStats);
 
-  const monthAgo=new Date(); monthAgo.setDate(now.getDate()-30);
+  const monthAgo=nowIST(); monthAgo.setUTCDate(monthAgo.getUTCDate()-30);
   const monthSessions=DB.sessions.filter(s=>new Date(s.date)>=monthAgo);
   const monthHours=monthSessions.reduce((a,b)=>a+Number(b.hours||0),0);
   const monthMocks=DB.mocks.filter(m=>new Date(m.date)>=monthAgo);
 
+  const archiveCount=(DB.weeklyReports||[]).length;
+
   return `
   <div class="section-title"><h2>Smart Recommendations</h2><span class="hint">Auto-generated from your logged data</span></div>
   <div class="card">${dailyRecommendations().map(r=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">💡 ${esc(r)}</div>`).join('')}</div>
+
   <div class="section-title"><h2>Today's Summary</h2></div>
   <div class="card review-block">Hours studied: ${th.toFixed(1)}h
 Topics covered: ${topicsCovered.length?topicsCovered.join(', '):'None logged'}
@@ -1013,31 +1122,18 @@ Weak areas to watch: ${weak.length?weak.join(', '):'None flagged'}
 Missed goals: ${DB.goals.filter(g=>g.type==='Daily'&&g.status!=='Completed').length} daily goal(s) still open
 Suggestion: ${th<todayTarget()?"You are below today's target — consider a short focused session before bed.":"Target met — use spare time for revision."}</div>
 
-  <div class="section-title"><h2>Weekly Report</h2><span class="hint">Last 7 days</span></div>
-  <div class="grid" style="grid-template-columns:repeat(5,1fr);">
-    <div class="card stat"><div class="label">Total Study Hours</div><div class="value">${weekHours.toFixed(1)}h</div></div>
-    <div class="card stat"><div class="label">Study Days</div><div class="value">${weekDaysStudied} / 7</div></div>
-    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${weekQuestions}</div></div>
-    <div class="card stat"><div class="label">Revisions Completed</div><div class="value">${weekRevisions}</div></div>
-    <div class="card stat"><div class="label">Weekly Goal</div><div class="value">${weekGoalPct}%</div></div>
+  <div class="section-title">
+    <h2>Weekly Report</h2>
+    <span class="hint">Sun ${curStats.weekStart} → Sat ${curStats.weekEnd} · current week</span>
   </div>
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
-    <div class="card">
-      <div class="label" style="margin-bottom:8px;">Subject Focus</div>
-      <div class="sub" style="line-height:1.9;font-size:12.5px;">
-        Strongest subject this week: <b style="color:var(--text);">${strongest}</b><br>
-        Weakest / most neglected: <b style="color:var(--text);">${weakest}</b><br>
-        Subjects neglected: <b style="color:var(--text);">${neglected.length?neglected.map(k=>subjLabel(k)).join(', '):'None — solid coverage'}</b>
-      </div>
-    </div>
-    <div class="card">
-      <div class="label" style="margin-bottom:8px;">Consistency & Recommendation</div>
-      <div class="sub" style="line-height:1.9;font-size:12.5px;">
-        Consistency score: <b style="color:var(--text);">${(weekDaysStudied/7*100).toFixed(0)}%</b><br>
-        Recommendation: ${neglected.length?'Rotate in '+subjLabel(neglected[0])+' before Sunday.':'Maintain current rotation, add a mock test.'}
-      </div>
+  <div class="flexbetween" style="margin:-4px 0 14px;">
+    <span class="sub">A new report period starts every Sunday. Nothing here overwrites a previous week.</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn ghost sm" data-action="viewWeeklyArchive">📂 Past Reports (${archiveCount})</button>
+      <button class="btn sm" data-action="takeWeeklySnapshot">📸 Take Snapshot</button>
     </div>
   </div>
+  ${renderWeekStatsHTML(curStats,cmp)}
 
   <div class="section-title"><h2>Monthly Review</h2></div>
   <div class="card review-block">Study hours (30d): ${monthHours.toFixed(1)}h
@@ -1046,42 +1142,6 @@ Revision completion: ${revisionPct().toFixed(1)}%
 Mock tests this month: ${monthMocks.length}${monthMocks.length?', avg score '+(monthMocks.reduce((a,b)=>a+Number(b.score||0),0)/monthMocks.length).toFixed(1):''}
 Top achievement: ${totalHours()>=100?'Crossed 100 hours total':'Building the habit foundation'}
 Next month goal: Push syllabus completion past ${Math.min(100,Math.ceil(syllabusPct()/10)*10+10)}%</div>
-  `;
-}
-
-/* ================= STUDY NOTES (quick notes + formulas + vocab) ================= */
-function ensureExtrasTemp(){if(!formTemp.formula)formTemp.formula={text:''}; if(!formTemp.vocab)formTemp.vocab={word:'',meaning:''};}
-function renderStudyNotes(){
-  ensureExtrasTemp();
-  return `
-  <div class="card">
-    <div class="label" style="margin-bottom:8px;">Quick Notes</div>
-    <textarea id="quickNotes" style="width:100%;min-height:130px;" placeholder="Jot anything down...">${esc(DB.notes.quick)}</textarea>
-    <button class="btn sm" style="margin-top:8px;" data-action="saveQuickNotes">Save Notes</button>
-  </div>
-  <div class="grid g2" style="margin-top:14px;">
-    <div class="card">
-      <div class="label" style="margin-bottom:8px;">Formula Book</div>
-      <div style="display:flex;gap:6px;margin-bottom:8px;">
-        <input type="text" id="formulaInput" placeholder="e.g. CI = P(1+r/100)^t - P" style="flex:1;" value="${esc(formTemp.formula.text)}">
-        <button class="btn sm" data-action="addFormula">Add</button>
-      </div>
-      <div style="max-height:220px;overflow-y:auto;">
-      ${DB.notes.formulas.length===0?'<div class="emptystate">No formulas saved yet.</div>':DB.notes.formulas.map(fm=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:12.5px;">${esc(fm.text)}</span><button class="icon-only" data-action="deleteFormula" data-id="${fm.id}">🗑</button></div>`).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="label" style="margin-bottom:8px;">Vocabulary Book</div>
-      <div class="formgrid" style="grid-template-columns:1fr 1fr;">
-        <input type="text" id="vocabWord" placeholder="Word" value="${esc(formTemp.vocab.word)}">
-        <input type="text" id="vocabMeaning" placeholder="Meaning" value="${esc(formTemp.vocab.meaning)}">
-      </div>
-      <button class="btn sm" data-action="addVocab">Add Word</button>
-      <div style="max-height:190px;overflow-y:auto;margin-top:8px;">
-      ${DB.notes.vocab.length===0?'<div class="emptystate">No words saved yet.</div>':DB.notes.vocab.map(v=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:12.5px;"><b>${esc(v.word)}</b> — ${esc(v.meaning)}</span><button class="icon-only" data-action="deleteVocab" data-id="${v.id}">🗑</button></div>`).join('')}
-      </div>
-    </div>
-  </div>
   `;
 }
 
@@ -1259,10 +1319,26 @@ function finalizeDay(oldDate){
 function checkDayRollover(){
   const today=todayStr();
   if(sessionDate&&sessionDate!==today){
-    finalizeDay(sessionDate);
+    finalizeDay(sessionDate); // flush any live pomodoro time into a session first, so it counts
+    archivePreviousWeekIfNeeded(sessionDate,today);
     sessionDate=today;
     render();
   }
+}
+/* Auto-archives the just-finished Sun→Sat week the first time the app is opened
+   after it ends. Never overwrites an existing 'completed' entry for that week —
+   if several weeks pass while the app is unopened, only the most recent boundary
+   crossed is archived (same limitation finalizeDay already has for single days). */
+function archivePreviousWeekIfNeeded(oldDateStr,newDateStr){
+  const oldWeekStart=weekStartOf(oldDateStr);
+  if(oldWeekStart===weekStartOf(newDateStr))return;
+  DB.weeklyReports=DB.weeklyReports||[];
+  if(DB.weeklyReports.some(w=>w.weekStart===oldWeekStart&&w.kind==='completed'))return;
+  const stats=computeWeekStats(oldWeekStart);
+  const prevStats=computeWeekStats(addDaysStr(oldWeekStart,-7));
+  DB.weeklyReports.push({id:uid(),weekStart:oldWeekStart,weekEnd:weekEndOf(oldWeekStart),savedAt:new Date().toISOString(),kind:'completed',stats,prevStats});
+  DB.weeklyReports.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));
+  scheduleSave();
 }
 function playBeep(){
   if(!DB.meta.pomoSound)return;
@@ -1292,8 +1368,44 @@ function logTopicRevision(topic){
   if(topic.status==='Completed')topic.status='Revised';
   return true;
 }
+/* ================= CELEBRATIONS (quick, cute, non-blocking) ================= */
+function celebrate(msg,emoji){
+  const el=document.createElement('div');
+  el.className='celebrate-toast';
+  el.innerHTML=`<span class="ce-emoji">${emoji||'🎉'}</span><span>${esc(msg)}</span>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  spawnConfetti();
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),300); },1500);
+}
+function spawnConfetti(){
+  const colors=['#a855f7','#ec4899','#22c55e','#3b82f6','#f59e0b'];
+  for(let i=0;i<16;i++){
+    const p=document.createElement('span');
+    p.className='confetti-piece';
+    p.style.left=(50+(Math.random()*44-22))+'vw';
+    p.style.background=colors[i%colors.length];
+    p.style.animationDelay=(Math.random()*0.15)+'s';
+    p.style.setProperty('--rot',(Math.random()*360)+'deg');
+    p.style.setProperty('--drift',(Math.random()*70-35)+'px');
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),1300);
+  }
+}
+/* Compares currently-unlocked badges against what's already been celebrated
+   (persisted in DB.meta.seenBadges) and fires a toast for any newly earned
+   one. Cheap to run every render — just a small array diff. */
+function checkBadgeUnlocks(){
+  const list=badgeList();
+  DB.meta.seenBadges=DB.meta.seenBadges||[];
+  const newlyUnlocked=list.filter(b=>b.unlocked&&!DB.meta.seenBadges.includes(b.label));
+  if(newlyUnlocked.length===0)return;
+  DB.meta.seenBadges=[...DB.meta.seenBadges,...newlyUnlocked.map(b=>b.label)];
+  scheduleSave();
+  newlyUnlocked.forEach((b,i)=>setTimeout(()=>celebrate('Badge unlocked: '+b.label,b.ic),i*900));
+}
 function logCompletedWorkBlock(){
-  if(studyTimer.seconds<=0)return;
+  if(studyTimer.seconds<=0)return false;
   const topic=pomoSelectedTopic();
   const isRevision=pomo.sessionType==='Revision';
   DB.sessions.push({id:uid(),date:todayStr(),start:'',end:'',hours:+(studyTimer.seconds/3600).toFixed(4),
@@ -1303,6 +1415,7 @@ function logCompletedWorkBlock(){
   if(isRevision&&topic)logTopicRevision(topic);
   studyTimer.seconds=0;
   scheduleSave();
+  return true;
 }
 function pomoTick(){
   checkDayRollover();
@@ -1313,7 +1426,7 @@ function pomoTick(){
     const finishedMode=pomo.mode;
     const nextMode=finishedMode==='Work'?'Break':'Work';
     notifySessionEnd(nextMode);
-    if(finishedMode==='Work')logCompletedWorkBlock();
+    if(finishedMode==='Work'){ if(logCompletedWorkBlock())celebrate('Focus session complete!','⏱'); }
     if(DB.meta.pomoAutoTransition){
       pomo.mode=nextMode; pomo.seconds=pomoDurationSeconds(nextMode);
       studyTimer.running=(nextMode==='Work');
@@ -1398,7 +1511,7 @@ function updateStudySessionUI(){
 }
 
 /* ================= MODAL ================= */
-function openModal(html){document.getElementById('modalRoot').innerHTML=`<div class="modal-overlay" data-action="closeModalBg"><div class="modal" data-stop>${html}</div></div>`;}
+function openModal(html,wide){document.getElementById('modalRoot').innerHTML=`<div class="modal-overlay" data-action="closeModalBg"><div class="modal${wide?' wide':''}" data-stop>${html}</div></div>`;}
 function closeModal(){document.getElementById('modalRoot').innerHTML='';}
 
 /* ================= MOBILE SIDEBAR ================= */
@@ -1420,11 +1533,9 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.action==='tab'){/* handled in click */}
   if(t.dataset.field && t.dataset.topic){ handleTopicField(t); }
-  if(t.dataset.action==='goalStatus'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.status=t.value; scheduleSave(); render(); }
-  if(t.dataset.action==='goalProgress'){ const g=DB.goals.find(x=>x.id===t.dataset.id); g.progress=Number(t.value); scheduleSave(); render(); }
+  if(t.dataset.action==='goalStatus'){ const g=DB.goals.find(x=>x.id===t.dataset.id); const wasCompleted=g.status==='Completed'; g.status=t.value; if(!wasCompleted&&g.status==='Completed')celebrate('Goal complete: '+g.text,'🏆'); scheduleSave(); render(); }
+  if(t.dataset.action==='goalProgress'){ const g=DB.goals.find(x=>x.id===t.dataset.id); const was100=g.progress>=100; g.progress=Number(t.value); if(!was100&&g.progress>=100)celebrate('Goal complete: '+g.text,'🏆'); scheduleSave(); render(); }
   if(t.dataset.action==='setPriority'){ DB.subjects[t.dataset.key].priority=t.value; scheduleSave(); render(); }
-  if(t.dataset.action==='toggleHabit'){ const d=todayStr(); DB.habits[d]=DB.habits[d]||{}; DB.habits[d][t.dataset.habit]=t.checked; scheduleSave(); render(); }
-  if(t.dataset.action==='toggleErrorFixed'){ const er=DB.errors.find(x=>x.id===t.dataset.id); er.fixed=t.checked; if(t.checked)er.dateRevised=todayStr(); scheduleSave(); render(); }
   if(t.dataset.action==='setTarget'){ DB.meta.targetHoursToday=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setQuestionTarget'){ DB.meta.questionTarget=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
@@ -1443,9 +1554,6 @@ document.addEventListener('change',e=>{
     if(t.checked && typeof Notification!=='undefined' && Notification.permission==='default')Notification.requestPermission();
   }
   if(t.id==='importFile'){ importDataFromFile(t); }
-});
-document.addEventListener('input',e=>{
-  if(e.target.id==='searchInput') doSearch(e.target.value);
 });
 
 function handleTopicField(t){
@@ -1469,6 +1577,7 @@ function handleAction(action,btn){
   const d=btn.dataset;
   if(action==='tab'){currentTab=d.tab; openSubject=null; render(); return;}
   if(action==='subtab'){currentSubtab[d.tabgroup]=d.sub; openSubject=null; render(); return;}
+  if(action==='setGoalTypeFilter'){goalTypeFilter=d.type; render(); return;}
   if(action==='openMobileSidebar'){openMobileSidebar(); return;}
   if(action==='closeMobileSidebar'){closeMobileSidebar(); return;}
   if(action==='setAccent'){DB.meta.accent=d.accent; document.documentElement.setAttribute('data-accent',d.accent); scheduleSave(); render(); return;}
@@ -1504,13 +1613,13 @@ function handleAction(action,btn){
     return;
   }
   if(action==='goSubjects'){currentTab='study'; currentSubtab.study='subjects'; openSubject=null; render(); return;}
-  if(action==='goRevision'){currentTab='study'; currentSubtab.study='revision'; openSubject=null; render(); return;}
+  if(action==='goRevision'){currentTab='dashboard'; render(); return;}
   if(action==='quickStartStudy'){ beginOrPauseStudySession(); currentTab='dashboard'; render(); return; }
   if(action==='openSubject'){openSubject=d.key; render(); return;}
   if(action==='closeSubject'){openSubject=null; render(); return;}
   if(action==='addRevision'){
     const topic=DB.subjects[d.key].topics.find(x=>x.id===d.topic);
-    if(logTopicRevision(topic)){ scheduleSave(); render(); }
+    if(logTopicRevision(topic)){ celebrate('Revised: '+topic.name,'🔁'); scheduleSave(); render(); }
     return;
   }
   if(action==='openEditRevisions'){
@@ -1532,30 +1641,53 @@ function handleAction(action,btn){
     else{ if(increased)topic.lastRevisionDate=todayStr(); if(topic.status==='Completed')topic.status='Revised'; }
     scheduleSave(); closeModal(); render(); return;
   }
-  /* ---- Custom (freeform) revision reminders ---- */
+  /* ---- Scheduler: freeform or topic-linked revisions, and planned study sessions ---- */
   if(action==='openAddCustomRevision'){
-    openModal(`<h3>Add a Revision</h3>
-    <p class="sub" style="margin:0 0 10px;">Add a quick revision reminder — for anything not already tracked as a syllabus topic.</p>
+    openModal(`<h3>Plan a Revision or Study Session</h3>
+    <p class="sub" style="margin:0 0 10px;">Plan out your week. Link a revision to a tracked topic so completing it counts toward that subject's revision stats — study sessions are just a plan for what to study and when.</p>
     <div class="formgrid" style="grid-template-columns:1fr;">
-      <label>Topic / Item <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
-      <label>Subject (optional) <input type="text" id="cr_subject" placeholder="e.g. Quant"></label>
+      <label>Type
+        <select id="cr_kind">
+          <option value="revision">🔁 Revision</option>
+          <option value="session">📖 Study Session</option>
+        </select>
+      </label>
+      <label>Link to a tracked topic (optional)
+        <select id="cr_topic">
+          <option value="">— freeform, not linked —</option>
+          ${subjectKeys().map(k=>`<optgroup label="${esc(subjLabel(k))}">${(DB.subjects[k].topics||[]).map(t=>`<option value="${k}|${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
+        </select>
+      </label>
+      <label>Topic / Item (used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
       <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
-      <label>Revision # (optional) <input type="number" min="1" id="cr_revnum" placeholder="e.g. 1"></label>
     </div>
-    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Add Revision</button></div>`);
+    <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Save</button></div>`);
     return;
   }
   if(action==='saveCustomRevision'){
-    const text=document.getElementById('cr_text').value.trim();
-    if(!text){alert('Please enter a topic or item to revise.'); return;}
-    const subject=document.getElementById('cr_subject').value.trim();
+    const kind=document.getElementById('cr_kind').value==='session'?'session':'revision';
+    const topicSel=document.getElementById('cr_topic').value;
+    const freeText=document.getElementById('cr_text').value.trim();
     const due=document.getElementById('cr_due').value||todayStr();
-    const revNum=document.getElementById('cr_revnum').value?Number(document.getElementById('cr_revnum').value):null;
+    let subjectKey='',topicId='',subjectLabelText='',text=freeText;
+    if(topicSel){
+      const [key,tId]=topicSel.split('|');
+      const topic=DB.subjects[key]&&DB.subjects[key].topics.find(t=>t.id===tId);
+      if(topic){ subjectKey=key; topicId=tId; subjectLabelText=subjLabel(key); text=text||topic.name; }
+    }
+    if(!text){alert('Please link a topic or type something to plan.'); return;}
     DB.customRevisions=DB.customRevisions||[];
-    DB.customRevisions.push({id:uid(),text,subject,due,revNum});
+    DB.customRevisions.push({id:uid(),kind,text,subject:subjectLabelText,subjectKey,topicId,due});
     scheduleSave(); closeModal(); render(); return;
   }
   if(action==='completeCustomRevision'){
+    const c=(DB.customRevisions||[]).find(x=>x.id===d.id);
+    const isSession=c&&c.kind==='session';
+    if(c&&!isSession&&c.topicId&&c.subjectKey&&DB.subjects[c.subjectKey]){
+      const topic=DB.subjects[c.subjectKey].topics.find(t=>t.id===c.topicId);
+      if(topic)logTopicRevision(topic); // counts toward that subject's revision stats
+    }
+    celebrate(c?(isSession?'Session done: '+c.text:'Revised: '+c.text):'Done','🎉');
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
     scheduleSave(); render(); return;
   }
@@ -1723,6 +1855,44 @@ function handleAction(action,btn){
     delete formTemp.goal; scheduleSave(); render(); return;
   }
   if(action==='deleteGoal'){DB.goals=DB.goals.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
+  if(action==='takeWeeklySnapshot'){
+    const curWeekStart=weekStartOf(todayStr());
+    const stats=computeWeekStats(curWeekStart);
+    const prevStats=computeWeekStats(addDaysStr(curWeekStart,-7));
+    DB.weeklyReports=DB.weeklyReports||[];
+    DB.weeklyReports.push({id:uid(),weekStart:curWeekStart,weekEnd:weekEndOf(curWeekStart),savedAt:new Date().toISOString(),kind:'snapshot',stats,prevStats});
+    DB.weeklyReports.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));
+    scheduleSave();
+    openModal(`<h3>📸 Snapshot Saved</h3><p class="sub" style="margin:0 0 12px;">A point-in-time copy of this week's report (${stats.weekStart} → ${stats.weekEnd}) has been saved to your archive. It won't change even as you keep studying this week, and your underlying study data is untouched.</p><div class="row"><button class="btn ghost" data-action="closeModal">Close</button></div>`);
+    return;
+  }
+  if(action==='viewWeeklyArchive'){
+    const rows=(DB.weeklyReports||[]).slice().sort((a,b)=>b.savedAt.localeCompare(a.savedAt));
+    openModal(`<h3>📂 Past Weekly Reports</h3>
+    <p class="sub" style="margin:0 0 10px;">Completed weeks are saved automatically; snapshots are saved manually. Nothing here is ever overwritten.</p>
+    ${rows.length===0?'<div class="emptystate">No saved weekly reports yet. Check back after your first full week, or take a manual snapshot.</div>':`
+    <div style="max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:8px;">
+    ${rows.map(r=>`<div class="flexbetween" style="padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+      <span>
+        <b>${r.weekStart} → ${r.weekEnd}</b><br>
+        <span class="sub">${r.kind==='snapshot'?'📸 Snapshot':'✅ Completed week'} · saved ${new Date(r.savedAt).toLocaleDateString()} · ${r.stats.hours.toFixed(1)}h logged</span>
+      </span>
+      <button class="btn sm ghost" data-action="viewWeeklyReportEntry" data-id="${r.id}">View</button>
+    </div>`).join('')}
+    </div>`}
+    <div class="row"><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    return;
+  }
+  if(action==='viewWeeklyReportEntry'){
+    const r=(DB.weeklyReports||[]).find(x=>x.id===d.id);
+    if(!r)return;
+    const cmp=r.prevStats?weekComparison(r.stats,r.prevStats):null;
+    openModal(`<h3>${r.kind==='snapshot'?'📸 Snapshot':'✅ Weekly Report'} — ${r.weekStart} → ${r.weekEnd}</h3>
+    <p class="sub" style="margin:0 0 12px;">Saved ${new Date(r.savedAt).toLocaleString()}. This is a frozen record and will not update.</p>
+    <div style="max-height:65vh;overflow:auto;">${renderWeekStatsHTML(r.stats,cmp)}</div>
+    <div class="row"><button class="btn ghost" data-action="viewWeeklyArchive">← Back</button><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    return;
+  }
   if(action==='saveMock'){
     const g=id=>document.getElementById(id);
     DB.meta.mockCounter=(DB.meta.mockCounter||0)+1;
@@ -1740,25 +1910,6 @@ function handleAction(action,btn){
     delete formTemp.pyq; scheduleSave(); render(); return;
   }
   if(action==='deletePyq'){DB.pyq=DB.pyq.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
-  if(action==='saveError'){
-    const g=id=>document.getElementById(id);
-    if(!g('e_question').value.trim())return;
-    DB.errors.push({id:uid(),question:g('e_question').value,subject:g('e_subject').value,topic:g('e_topic').value,why:g('e_why').value,concept:g('e_concept').value,revisionNeeded:g('e_revisionNeeded').checked,fixed:false,dateRevised:''});
-    delete formTemp.error; scheduleSave(); render(); return;
-  }
-  if(action==='deleteError'){DB.errors=DB.errors.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
-  if(action==='saveQuickNotes'){DB.notes.quick=document.getElementById('quickNotes').value; scheduleSave(); return;}
-  if(action==='addFormula'){
-    const v=document.getElementById('formulaInput').value.trim(); if(!v)return;
-    DB.notes.formulas.push({id:uid(),text:v}); formTemp.formula.text=''; scheduleSave(); render(); return;
-  }
-  if(action==='deleteFormula'){DB.notes.formulas=DB.notes.formulas.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
-  if(action==='addVocab'){
-    const w=document.getElementById('vocabWord').value.trim(), m=document.getElementById('vocabMeaning').value.trim();
-    if(!w)return;
-    DB.notes.vocab.push({id:uid(),word:w,meaning:m}); formTemp.vocab={word:'',meaning:''}; scheduleSave(); render(); return;
-  }
-  if(action==='deleteVocab'){DB.notes.vocab=DB.notes.vocab.filter(x=>x.id!==d.id); scheduleSave(); render(); return;}
   /* ---- Study Session (Pomodoro) controls ---- */
   if(action==='pomoStart'){ beginOrPauseStudySession(); return; }
   if(action==='refreshStartSessionModal'){ openStartSessionModal(document.getElementById('ss_subject').value); return; }
@@ -1846,20 +1997,6 @@ document.addEventListener('drop',e=>{
    support HTML5 DnD polyfilled by touch, so the above handlers degrade gracefully. */
 
 /* ================= SEARCH ================= */
-function doSearch(q){
-  const box=document.getElementById('searchResults');
-  q=q.trim().toLowerCase();
-  if(!q){box.style.display='none';box.innerHTML='';return;}
-  const results=[];
-  allTopics().forEach(t=>{if(t.name.toLowerCase().includes(q))results.push(`<b>Topic</b> — ${esc(t.name)} (${esc(subjLabel(t.subject))})`);});
-  DB.notes.formulas.forEach(f=>{if(f.text.toLowerCase().includes(q))results.push(`<b>Formula</b> — ${esc(f.text)}`);});
-  DB.notes.vocab.forEach(v=>{if(v.word.toLowerCase().includes(q)||v.meaning.toLowerCase().includes(q))results.push(`<b>Vocab</b> — ${esc(v.word)}: ${esc(v.meaning)}`);});
-  DB.goals.forEach(gl=>{if(gl.text.toLowerCase().includes(q))results.push(`<b>Goal</b> — ${esc(gl.text)}`);});
-  if(!results.length){box.innerHTML='<div class="sres">No matches found.</div>';}
-  else box.innerHTML=results.slice(0,12).map(r=>`<div class="sres">${r}</div>`).join('');
-  box.style.display='block';
-}
-
 /* ================= CHARTS ================= */
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function afterRenderHooks(){

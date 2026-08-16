@@ -16,9 +16,10 @@
     <div class="brand">
       <div class="brand-mark">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.4" opacity=".55"/>
-          <path d="M12 4.5 15 12l-3 7.5L9 12z" fill="currentColor"/>
-          <circle cx="12" cy="12" r="1.4" fill="currentColor"/>
+          <path d="M12 4.3 L5.4 19.3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 4.3 L18.6 19.3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.5 13.4 L15.5 13.4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" opacity=".8"/>
+          <circle cx="12" cy="4.3" r="1.55" fill="currentColor"/>
         </svg>
       </div>
       <div class="brand-text"><div class="t1">AtlasTrackIt</div><div class="t2">Prep Command Center</div></div>
@@ -27,7 +28,7 @@
     <nav id="nav"></nav>
     <div class="sidefoot">
       <div class="streakpill">🔥 <span id="sideStreak">0 day streak</span></div>
-      <button class="darkbtn" data-action="toggleDark">🌓 Toggle theme</button>
+      <button class="darkbtn" data-action="toggleDark"><span class="theme-emoji"></span> Toggle theme</button>
     </div>
   </div>
   <div id="main">
@@ -35,11 +36,6 @@
       <div style="display:flex;align-items:center;gap:10px;">
         <button id="hamburgerBtn" data-action="openMobileSidebar" title="Open menu">☰</button>
         <h1 id="pageTitle">Dashboard</h1>
-      </div>
-      <div class="searchwrap">
-        <span class="sic">🔍</span>
-        <input id="searchInput" type="text" placeholder="Search topics, notes, formulas, vocab...">
-        <div id="searchResults"></div>
       </div>
     </div>
     <div id="view"></div>
