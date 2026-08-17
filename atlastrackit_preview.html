@@ -89,7 +89,7 @@ html.dark body:after{opacity:.22;}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;}
 .brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(150deg,var(--accent-500),var(--accent-700) 55%,var(--accent-900));display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 6px 16px -4px var(--accent-700);}
 .brand-mark svg{width:21px;height:21px;}
-.brand-text .t1{font-size:15px;font-weight:700;line-height:1.1;font-family:var(--font-display);letter-spacing:-.01em;color:var(--accent-600);}
+.brand-text .t1{font-size:15px;font-weight:700;line-height:1.1;font-family:var(--font-display);letter-spacing:-.01em;background:linear-gradient(100deg,var(--text),var(--accent-600));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
 .brand-text .t2{font-size:10px;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
 nav{display:flex;flex-direction:column;gap:3px;}
 .navbtn{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:11px;border:none;background:transparent;color:var(--text-muted);font-size:13.5px;font-weight:600;text-align:left;width:100%;transition:background .18s,color .18s,transform .12s;}
@@ -151,7 +151,7 @@ html.dark .theme-emoji:before{content:'☀️';}
 }
 .glass-card>*{position:relative;z-index:1;}
 .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;}
-.value{font-size:20px;font-weight:700;font-family:var(--font-display);letter-spacing:-.01em;color:var(--text);}
+.value{font-size:20px;font-weight:700;font-family:var(--font-display);letter-spacing:-.01em;background:linear-gradient(100deg,var(--text) 40%,var(--accent-600));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
 .stat{display:flex;flex-direction:column;gap:4px;}
 .stat .label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
 .stat .value{font-size:25px;}
@@ -260,7 +260,7 @@ html.dark .badge.unlocked{color:var(--accent-500);}
 .quote-box span{font-size:11px;opacity:.8;}
 
 /* ---------- Pomodoro / study session ---------- */
-.pomo-display{font-family:var(--font-mono);font-size:46px;font-weight:700;text-align:center;letter-spacing:.02em;color:var(--text);text-shadow:0 0 24px var(--accent-500);}
+.pomo-display{font-family:var(--font-mono);font-size:46px;font-weight:700;text-align:center;letter-spacing:.02em;background:linear-gradient(100deg,var(--text),var(--accent-600));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;}
 .pomo-controls{display:flex;gap:8px;justify-content:center;margin-top:10px;}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;}
 .checkbox-row input{width:16px;height:16px;}
@@ -330,6 +330,7 @@ html.dark .badge.unlocked{color:var(--accent-500);}
   *,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important;}
   body:before,body:after{display:none;}
 }
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
@@ -370,11 +371,25 @@ html.dark .badge.unlocked{color:var(--accent-500);}
 /* ================= DATA MODEL ================= */
 // Intentionally left as the original key name so existing saved data keeps loading after the rebrand.
 const STORAGE_KEY='ssc_cgl_state_v1';
-const IST_OFFSET_MS=5.5*60*60*1000; // IST = UTC+5:30
-// Returns a Date object whose UTC getters/formatters (toISOString, getUTCDate, etc.)
-// read as current IST wall-clock time — independent of the device/server's own timezone.
-function nowIST(){return new Date(Date.now()+IST_OFFSET_MS);}
-const todayStr=()=>nowIST().toISOString().slice(0,10);
+/* ---- IST-anchored date/time ----
+   This app is built for IST users, so "today" and all day/week boundaries are
+   pinned to true India Standard Time (UTC+5:30) rather than the browser's
+   local timezone (which may differ from IST, or simply parse things via UTC
+   through Date.toISOString(), which previously caused the day — and the
+   weekly report's Sunday reset — to flip at 5:30 AM IST instead of 12:00 AM).
+   nowIST() reads the true, timezone-agnostic epoch (Date.now()) and shifts it
+   by the IST offset, so the calendar day/hour/minute below are always the
+   real IST wall-clock values no matter what timezone the device is set to. */
+const IST_OFFSET_MS=5.5*60*60*1000;
+function nowIST(){ return new Date(Date.now()+IST_OFFSET_MS); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+const todayStr=()=>{ const d=nowIST(); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`; };
+/* Epoch instant (ms) of true IST midnight for a given Y-M-D calendar string. */
+function istMidnightEpoch(dateStr){
+  const [y,m,day]=dateStr.split('-').map(Number);
+  return Date.UTC(y,m-1,day)-IST_OFFSET_MS;
+}
+function endOfDayIST(dateStr){ return istMidnightEpoch(dateStr)+24*3600*1000-1; }
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Storage adapter: uses the Claude artifact window.storage API when running
@@ -542,17 +557,17 @@ function allTopics(){let t=[];subjectKeys().forEach(k=>t.push(...DB.subjects[k].
 function totalHours(){return DB.sessions.reduce((s,x)=>s+Number(x.hours||0),0);}
 function hoursOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.hours||0),0);}
 function hoursSince(daysBack){
-  const cutoff=nowIST();cutoff.setUTCDate(cutoff.getUTCDate()-daysBack);
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-daysBack);
   return DB.sessions.filter(s=>new Date(s.date)>=cutoff).reduce((a,b)=>a+Number(b.hours||0),0);
 }
 function daysStudied(){return new Set(DB.sessions.map(s=>s.date)).size;}
 function currentStreak(){
   const days=new Set(DB.sessions.filter(s=>Number(s.hours)>0).map(s=>s.date));
-  let d=new Date(); let streak=0;
+  let streak=0;
   // allow today to be empty without breaking streak calc from yesterday
-  let cursor=new Date(todayStr());
-  if(!days.has(todayStr())){cursor.setUTCDate(cursor.getUTCDate()-1);}
-  while(days.has(cursor.toISOString().slice(0,10))){streak++;cursor.setUTCDate(cursor.getUTCDate()-1);}
+  let cursor=todayStr();
+  if(!days.has(cursor)){cursor=addDaysStr(cursor,-1);}
+  while(days.has(cursor)){streak++;cursor=addDaysStr(cursor,-1);}
   return streak;
 }
 function longestStreak(){
@@ -597,7 +612,7 @@ function revisionQueue(){
     if(t.status==='Completed'||t.status==='Revised'){
       const base=t.lastRevisionDate||t.completionDate;
       if(base && t.revisions<5){
-        const due=new Date(base); due.setUTCDate(due.getUTCDate()+intervals[t.revisions]);
+        const due=new Date(base); due.setDate(due.getDate()+intervals[t.revisions]);
         out.push({name:t.name,subject:subjLabel(t.subject),subjectKey:t.subject,due:due.toISOString().slice(0,10),revNum:t.revisions+1,topicId:t.id});
       }
     }
@@ -608,7 +623,7 @@ function revisionQueue(){
 function questionsOn(dateStr){return DB.sessions.filter(s=>s.date===dateStr).reduce((a,b)=>a+Number(b.qSolved||0),0);}
 function questionsOnExcludingQuickEdit(dateStr){return DB.sessions.filter(s=>s.date===dateStr&&!s.quickEdit).reduce((a,b)=>a+Number(b.qSolved||0),0);}
 function questionsSince(daysBack){
-  const cutoff=nowIST();cutoff.setUTCDate(cutoff.getUTCDate()-daysBack);
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-daysBack);
   return DB.sessions.filter(s=>new Date(s.date)>=cutoff).reduce((a,b)=>a+Number(b.qSolved||0),0);
 }
 function totalQuestionsSolved(){return DB.sessions.reduce((a,b)=>a+Number(b.qSolved||0),0);}
@@ -653,7 +668,7 @@ function dailyRecommendations(){
     const caPct=subjectStats('currentAffairs').pct;
     if(caPct<syllabusPct()-10)out.push('Current Affairs needs attention.');
   }
-  const dueTomorrow=revisionQueue().filter(r=>{const t=nowIST();t.setUTCDate(t.getUTCDate()+1);return r.due===t.toISOString().slice(0,10);});
+  const dueTomorrow=revisionQueue().filter(r=>r.due===addDaysStr(todayStr(),1));
   if(dueTomorrow.length)out.push(`Tomorrow prioritize revising ${dueTomorrow[0].name}.`);
   else{
     const weakest=allTopics().filter(t=>t.status!=='Completed'&&t.status!=='Revised').sort((a,b)=>a.confidence-b.confidence)[0];
@@ -743,7 +758,10 @@ function renderDashboard(){
   const target=todayTarget();
   const isOverride=DB.dailyTargets[today]!==undefined&&DB.dailyTargets[today]!==null&&DB.dailyTargets[today]!=='';
   const th=todayStudyTime();
-  const quote=QUOTES[nowIST().getUTCDate()%QUOTES.length];
+  const tasks=DB.tasks[today]||[];
+  const doneCount=tasks.filter(t=>t.done).length;
+  const taskPct=tasks.length?doneCount/tasks.length*100:0;
+  const quote=QUOTES[new Date().getDate()%QUOTES.length];
   return `
   <div class="grid g3">
     <div class="card stat">
@@ -802,9 +820,24 @@ function renderDashboard(){
     </div>
   </div>
 
-  <div class="card" style="text-align:center;margin-top:14px;">
-    <div class="label" style="margin-bottom:10px;">Today's Progress</div>
-    <div class="ring-wrap" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0))}<div class="ring-label"><b>${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
+  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
+    <div class="card" style="text-align:center;">
+      <div class="label" style="margin-bottom:10px;">Today's Progress</div>
+      <div class="ring-wrap" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0))}<div class="ring-label"><b>${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
+    </div>
+    <div class="card">
+      <div class="flexbetween"><div class="label">Today's Tasks</div><span class="sub">${doneCount} / ${tasks.length} done</span></div>
+      <div class="bar" style="margin:8px 0 12px;"><span style="width:${taskPct}%"></span></div>
+      ${tasks.length===0?'<div class="emptystate">No tasks yet — add your first for today.</div>':
+      tasks.map(t=>`<div class="checkbox-row" style="justify-content:space-between;">
+        <label style="display:flex;align-items:center;gap:8px;flex:1;"><input type="checkbox" data-action="toggleTask" data-id="${t.id}" ${t.done?'checked':''}> <span style="${t.done?'text-decoration:line-through;color:var(--text-faint);':''}">${esc(t.text)}</span></label>
+        <button class="icon-only" data-action="deleteTask" data-id="${t.id}">🗑</button>
+      </div>`).join('')}
+      <div style="display:flex;gap:6px;margin-top:12px;">
+        <input type="text" id="newTaskInput" placeholder="e.g. Solve 100 Quant Questions" style="flex:1;">
+        <button class="btn sm" data-action="addTask">Add</button>
+      </div>
+    </div>
   </div>
 
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
@@ -830,7 +863,7 @@ function renderDashboard(){
   `;
 }
 function renderStudyHistoryCard(){
-  const y=[...Array(1)].map((_,i)=>{const d=nowIST();d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})[0];
+  const y=addDaysStr(todayStr(),-1);
   const yEntry=(DB.history||[]).find(h=>h.date===y);
   return `
     <div class="card">
@@ -890,43 +923,44 @@ function renderDashboardRevisions(){
   const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tmr),'Next 7 Days':q.filter(r=>r.due>tmr&&r.due<=in7)};
   const custom=(DB.customRevisions||[]).slice().sort((a,b)=>a.due.localeCompare(b.due));
   return `
-  <div class="card">
-    <div class="label" style="margin-bottom:2px;">🔁 Recommended</div>
-    <div class="sub" style="margin-bottom:10px;">Auto-scheduled from topics you've marked Completed (spaced repetition).</div>
-    <div style="max-height:280px;overflow-y:auto;">
-    ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet — complete some topics to build a revision schedule.</div>':
-    Object.keys(groups).map(g=>{
-      const items=groups[g];
-      if(items.length===0)return '';
-      return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-      ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-        <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-          <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
-          <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
-        </label>
-      </div>`).join('')}`;
-    }).join('')}
-    </div>
-    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
-    <div class="label" style="margin-bottom:2px;">📌 Manually Added & Scheduled</div>
-    <div class="sub" style="margin-bottom:10px;">Plan revisions or study sessions across the week. Link a topic so a revision counts toward that subject.</div>
-    <div style="max-height:280px;overflow-y:auto;">
-    ${custom.length===0?'<div class="emptystate">Nothing planned yet — use "+ Add / Schedule Item" to plan your week.</div>':
-    (()=>{
-      const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
-      return Object.keys(wgroups).map(g=>{
-        const items=wgroups[g];
+  <div class="grid g2" style="align-items:start;">
+    <div class="card">
+      <div class="label" style="margin-bottom:10px;">🔁 Recommended</div>
+      <div style="max-height:340px;overflow-y:auto;">
+      ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet.</div>':
+      Object.keys(groups).map(g=>{
+        const items=groups[g];
         if(items.length===0)return '';
         return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-        ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+        ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
           <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-            <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-            <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''}${c.topicId?' · linked topic (counts)':''} · due ${c.due}</span></span>
+            <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
+            <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
           </label>
-          <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
         </div>`).join('')}`;
-      }).join('');
-    })()}
+      }).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:10px;">📌 Manually Added & Scheduled</div>
+      <div style="max-height:340px;overflow-y:auto;">
+      ${custom.length===0?'<div class="emptystate">Nothing planned yet.</div>':
+      (()=>{
+        const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
+        return Object.keys(wgroups).map(g=>{
+          const items=wgroups[g];
+          if(items.length===0)return '';
+          return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
+          ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+            <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+              <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
+              <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''} · due ${c.due}</span></span>
+            </label>
+            <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
+          </div>`).join('')}`;
+        }).join('');
+      })()}
+      </div>
     </div>
   </div>`;
 }
@@ -1092,7 +1126,7 @@ function renderUpcomingDeadlines(){
   const in24h=now+24*3600*1000;
   const upcoming=DB.goals.filter(g=>{
     if(!g.deadline||g.status==='Completed')return false;
-    const dueBy=new Date(g.deadline+'T23:59:59').getTime(); // goal is due by the end of its deadline day
+    const dueBy=endOfDayIST(g.deadline); // goal is due by the end of its deadline day, in IST
     return dueBy>=now&&dueBy<=in24h;
   }).sort((a,b)=>a.deadline.localeCompare(b.deadline));
   return `<div class="card">${upcoming.length===0?'<div class="emptystate">No deadlines in the next 24 hours.</div>':
@@ -1244,7 +1278,7 @@ function renderPyq(){
 
 /* ================= ANALYTICS ================= */
 function renderAnalytics(){
-  const days=[...Array(91)].map((_,i)=>{const d=nowIST();d.setUTCDate(d.getUTCDate()-(90-i));return d.toISOString().slice(0,10);});
+  const days=[...Array(91)].map((_,i)=>addDaysStr(todayStr(),-(90-i)));
   const maxH=Math.max(1,...days.map(d=>hoursOn(d)));
   const p=paceMeter();
   const mg=missedGoals();
@@ -1297,14 +1331,16 @@ function renderAnalytics(){
    auto-archived completed weeks, and for manual snapshots, so all three read the
    same underlying session/topic/mock data and never drift apart. */
 function weekStartOf(dateStr){
-  const d=new Date(dateStr+'T00:00:00Z');
+  const [y,m,day]=dateStr.split('-').map(Number);
+  const d=new Date(Date.UTC(y,m-1,day));
   d.setUTCDate(d.getUTCDate()-d.getUTCDay()); // getUTCDay(): 0=Sunday
-  return d.toISOString().slice(0,10);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
 }
 function addDaysStr(dateStr,n){
-  const d=new Date(dateStr+'T00:00:00Z');
+  const [y,m,day]=dateStr.split('-').map(Number);
+  const d=new Date(Date.UTC(y,m-1,day));
   d.setUTCDate(d.getUTCDate()+n);
-  return d.toISOString().slice(0,10);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
 }
 function weekEndOf(weekStart){return addDaysStr(weekStart,6);}
 function weekDates(weekStart){return [...Array(7)].map((_,i)=>addDaysStr(weekStart,i));}
@@ -1451,7 +1487,7 @@ function renderWeeklyReport(){
   const prevStats=computeWeekStats(addDaysStr(curWeekStart,-7));
   const cmp=weekComparison(curStats,prevStats);
 
-  const monthAgo=nowIST(); monthAgo.setUTCDate(monthAgo.getUTCDate()-30);
+  const monthAgo=new Date(); monthAgo.setDate(new Date().getDate()-30);
   const monthSessions=DB.sessions.filter(s=>new Date(s.date)>=monthAgo);
   const monthHours=monthSessions.reduce((a,b)=>a+Number(b.hours||0),0);
   const monthMocks=DB.mocks.filter(m=>new Date(m.date)>=monthAgo);
@@ -1692,13 +1728,17 @@ function playBeep(){
   if(!DB.meta.pomoSound)return;
   try{
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const o=ctx.createOscillator(), g=ctx.createGain();
-    o.type='sine'; o.frequency.value=880;
-    g.gain.setValueAtTime(0.0001,ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.5);
-    o.connect(g); g.connect(ctx.destination);
-    o.start(); o.stop(ctx.currentTime+0.55);
+    const beepAt=(startOffset)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='sine'; o.frequency.value=880;
+      const t=ctx.currentTime+startOffset;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.9,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t+0.4);
+    };
+    beepAt(0); beepAt(0.45); beepAt(0.9); // 3 loud beeps instead of 1 soft one
   }catch(e){/* audio not available */}
 }
 function notifySessionEnd(nextMode){
@@ -1992,7 +2032,6 @@ function handleAction(action,btn){
   /* ---- Scheduler: freeform or topic-linked revisions, and planned study sessions ---- */
   if(action==='openAddCustomRevision'){
     openModal(`<h3>Plan a Revision or Study Session</h3>
-    <p class="sub" style="margin:0 0 10px;">Plan out your week. Link a revision to a tracked topic so completing it counts toward that subject's revision stats — study sessions are just a plan for what to study and when.</p>
     <div class="formgrid" style="grid-template-columns:1fr;">
       <label>Type
         <select id="cr_kind">
@@ -2006,7 +2045,7 @@ function handleAction(action,btn){
           ${subjectKeys().map(k=>`<optgroup label="${esc(subjLabel(k))}">${(DB.subjects[k].topics||[]).map(t=>`<option value="${k}|${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
         </select>
       </label>
-      <label>Subtopic / Goal for Today (optional, used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
+      <label>Topic / Item (used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
       <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
     </div>
     <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Save</button></div>`);
@@ -2370,6 +2409,7 @@ function afterRenderHooks(){
 
 /* ================= INIT ================= */
 loadDB();
+
 </script>
 </body>
 </html>
