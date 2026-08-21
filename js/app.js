@@ -77,7 +77,7 @@ function defaultState(){
   const subjects={};
   Object.keys(SYLLABUS).forEach(k=>{subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};});
   return {
-    meta:{startDate:todayStr(),dark:false,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'violet',
+    meta:{startDate:todayStr(),dark:true,targetHoursToday:7,mockCounter:0,questionTarget:50000,mockTargetScore:200,accent:'violet',
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[],
@@ -386,136 +386,221 @@ function renderMocksPage(){
 function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
-  const isOverride=DB.dailyTargets[today]!==undefined&&DB.dailyTargets[today]!==null&&DB.dailyTargets[today]!=='';
   const th=todayStudyTime();
-  const tasks=DB.tasks[today]||[];
-  const doneCount=tasks.filter(t=>t.done).length;
-  const taskPct=tasks.length?doneCount/tasks.length*100:0;
   const quote=QUOTES[new Date().getDate()%QUOTES.length];
+  const pomoTopicObj=(DB.subjects[pomo.subjectKey]?.topics||[]).find(t=>t.id===pomo.topicId);
+  const pomoSubjLabel=pomo.subjectKey?subjLabel(pomo.subjectKey):'No subject selected';
+  const pomoTopicLabel=pomoTopicObj?pomoTopicObj.name:(pomo.subtopic||'');
   return `
-  <div class="grid g3">
-    <div class="card stat">
-      <div class="flexbetween">
-        <div class="label">Today's Goal</div>
-        <button class="icon-only" data-action="editTodayTarget" title="Edit today's target">✏</button>
-      </div>
-      <div class="value" id="todayGoalValue">${th.toFixed(1)} / ${target}h</div>
-      <div class="sub">${isOverride?'Custom target for today':'Using default daily target'}</div>
+  <div class="card glass-card hero-zone" id="studySessionCard" style="padding:28px 26px 24px;">
+    <div class="flexbetween" style="margin-bottom:20px;">
+      <div class="label" style="font-size:12px;">🎯 Today's Focus</div>
+      <span class="sub">Day ${daysElapsed()} of 365 · ${daysRemaining()}d left</span>
     </div>
-    <div class="card stat"><div class="label">365-Day Countdown</div><div class="value">${daysRemaining()}d left</div><div class="sub">Day ${daysElapsed()} of 365</div></div>
-    <div class="card stat">
-      <div class="flexbetween">
-        <div class="label">Questions Solved Today</div>
-        <button class="icon-only" data-action="editQuestionsToday" title="Edit today's question count">✏</button>
-      </div>
-      <div class="value" id="questionsTodayValue">${questionsOn(today)} <span style="font-size:13px;font-weight:600;color:var(--text-faint);">Questions</span></div>
-    </div>
-  </div>
+    <div style="display:flex;gap:30px;align-items:center;flex-wrap:wrap;">
+      <div class="ring-wrap hero-ring" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0),170)}<div class="ring-label"><b id="todayGoalValue">${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
+      <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:14px;">
+        <div class="grid g3" style="gap:10px;">
+          <div class="chip stat" style="padding:10px 12px;border-radius:14px;">
+            <div class="label" style="margin:0 0 4px;">Streak</div>
+            <div class="value" style="font-size:19px;${currentStreak()>=7?'text-shadow:0 0 14px rgba(255,150,60,.5);':''}">${currentStreak()} 🔥</div>
+          </div>
+          <div class="chip stat" style="padding:10px 12px;border-radius:14px;">
+            <div class="flexbetween"><div class="label" style="margin:0 0 4px;">Questions</div><button class="icon-only" data-action="editQuestionsToday" title="Edit today's question count" style="font-size:10px;">✏</button></div>
+            <div class="value" style="font-size:19px;" id="questionsTodayValue">${questionsOn(today)}</div>
+          </div>
+          <div class="chip stat" style="padding:10px 12px;border-radius:14px;">
+            <div class="flexbetween"><div class="label" style="margin:0 0 4px;">Today's Goal</div><button class="icon-only" data-action="editTodayTarget" title="Edit today's target" style="font-size:10px;">✏</button></div>
+            <div class="value" style="font-size:19px;">${target}h</div>
+          </div>
+        </div>
 
-  <div class="card glass-card" id="studySessionCard" style="margin-top:14px;">
-    <div class="flexbetween">
-      <div class="label">Study Session</div>
-      <span class="sub" id="studySessionMode">${pomo.mode==='Work'?'🎯 Study Session':'☕ Break'}</span>
-    </div>
-    <div class="pomo-display mono" id="studySessionTimer">${fmtTime(pomo.seconds)}</div>
-    <div class="sub" style="text-align:center;" id="studySessionTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
-    <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:10px;margin-bottom:0;">
-      <label>Subject <select data-action="setPomoSubject" ${pomo.running?'disabled':''}>
-        <option value="">— none —</option>
-        ${subjectKeys().map(k=>`<option value="${k}" ${pomo.subjectKey===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
-      </select></label>
-      <label>Topic <select data-action="setPomoTopic" ${pomo.running||!pomo.subjectKey?'disabled':''}>
-        <option value="">— none —</option>
-        ${(DB.subjects[pomo.subjectKey]?.topics||[]).map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
-      </select></label>
-      <label>Subtopic <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
-      <label>Session Type <select data-action="setPomoSessionType" ${pomo.running?'disabled':''}>
-        <option value="Study" ${pomo.sessionType!=='Revision'?'selected':''}>🎯 Study Session</option>
-        <option value="Revision" ${pomo.sessionType==='Revision'?'selected':''}>🔁 Revision</option>
-      </select></label>
-    </div>
-    <div class="pomo-controls">
-      <button class="btn sm" id="studySessionStartBtn" data-action="pomoStart">${pomo.running?'Pause':'Start'}</button>
-      <button class="btn ghost sm" data-action="pomoResetBtn">Reset</button>
-    </div>
-    <div style="margin-top:14px;">
-      <div class="sub" style="margin-bottom:6px;">Presets</div>
-      <div class="tabsrow">
-        ${POMO_PRESETS.map(([w,b])=>`<button class="${DB.meta.pomoWork===w&&DB.meta.pomoBreak===b?'active':''}" data-action="setPomoPreset" data-work="${w}" data-break="${b}">${w}/${b}</button>`).join('')}
-      </div>
-      <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:4px;margin-bottom:0;">
-        <label>Study (min) <input type="number" min="1" value="${DB.meta.pomoWork||25}" data-action="setPomoWork"></label>
-        <label>Break (min) <input type="number" min="1" value="${DB.meta.pomoBreak||5}" data-action="setPomoBreak"></label>
-      </div>
-    </div>
-  </div>
+        <div class="session-row">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <span class="live-dot${pomo.running?'':' idle'}"></span>
+            <div style="min-width:0;">
+              <div style="font-family:var(--font-display);font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pomoSubjLabel)}${pomoTopicLabel?' — '+esc(pomoTopicLabel):''}</div>
+              <div class="sub" id="studySessionMode" style="margin-top:1px;">${pomo.mode==='Work'?'🎯 Study Session':'☕ Break'}</div>
+            </div>
+          </div>
+          <div class="pomo-display mono" id="studySessionTimer" style="font-size:26px;">${fmtTime(pomo.seconds)}</div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn sm" id="studySessionStartBtn" data-action="pomoStart">${pomo.running?'Pause':'Start'}</button>
+            <button class="btn ghost sm" data-action="pomoResetBtn">Reset</button>
+          </div>
+        </div>
+        <div class="sub" id="studySessionTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
 
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
-    <div class="card" style="text-align:center;">
-      <div class="label" style="margin-bottom:10px;">Today's Progress</div>
-      <div class="ring-wrap" id="todayRingWrap">${ringSVG(Math.min(100,target?th/target*100:0))}<div class="ring-label"><b>${th.toFixed(1)}h</b><span>of ${target}h target</span></div></div>
-    </div>
-    <div class="card">
-      <div class="flexbetween"><div class="label">Today's Tasks</div><span class="sub">${doneCount} / ${tasks.length} done</span></div>
-      <div class="bar" style="margin:8px 0 12px;"><span style="width:${taskPct}%"></span></div>
-      ${tasks.length===0?'<div class="emptystate">No tasks yet — add your first for today.</div>':
-      tasks.map(t=>`<div class="checkbox-row" style="justify-content:space-between;">
-        <label style="display:flex;align-items:center;gap:8px;flex:1;"><input type="checkbox" data-action="toggleTask" data-id="${t.id}" ${t.done?'checked':''}> <span style="${t.done?'text-decoration:line-through;color:var(--text-faint);':''}">${esc(t.text)}</span></label>
-        <button class="icon-only" data-action="deleteTask" data-id="${t.id}">🗑</button>
-      </div>`).join('')}
-      <div style="display:flex;gap:6px;margin-top:12px;">
-        <input type="text" id="newTaskInput" placeholder="e.g. Solve 100 Quant Questions" style="flex:1;">
-        <button class="btn sm" data-action="addTask">Add</button>
+        <details class="session-settings">
+          <summary>⚙ Session Settings</summary>
+          <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:12px;margin-bottom:0;">
+            <label>Subject <select data-action="setPomoSubject" ${pomo.running?'disabled':''}>
+              <option value="">— none —</option>
+              ${subjectKeys().map(k=>`<option value="${k}" ${pomo.subjectKey===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
+            </select></label>
+            <label>Topic <select data-action="setPomoTopic" ${pomo.running||!pomo.subjectKey?'disabled':''}>
+              <option value="">— none —</option>
+              ${(DB.subjects[pomo.subjectKey]?.topics||[]).map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
+            </select></label>
+            <label>Subtopic <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
+            <label>Session Type <select data-action="setPomoSessionType" ${pomo.running?'disabled':''}>
+              <option value="Study" ${pomo.sessionType!=='Revision'?'selected':''}>🎯 Study Session</option>
+              <option value="Revision" ${pomo.sessionType==='Revision'?'selected':''}>🔁 Revision</option>
+            </select></label>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="sub" style="margin-bottom:6px;">Presets</div>
+            <div class="tabsrow">
+              ${POMO_PRESETS.map(([w,b])=>`<button class="${DB.meta.pomoWork===w&&DB.meta.pomoBreak===b?'active':''}" data-action="setPomoPreset" data-work="${w}" data-break="${b}">${w}/${b}</button>`).join('')}
+            </div>
+            <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:4px;margin-bottom:0;">
+              <label>Study (min) <input type="number" min="1" value="${DB.meta.pomoWork||25}" data-action="setPomoWork"></label>
+              <label>Break (min) <input type="number" min="1" value="${DB.meta.pomoBreak||5}" data-action="setPomoBreak"></label>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>
 
-  <div class="grid g2" style="margin-top:14px;align-items:stretch;">
-    <div class="card">
-      <div class="label" style="margin-bottom:10px;">Quick Progress Summary</div>
-      <div class="grid g2" style="gap:10px;">
-        <div class="sub">Syllabus<br><b style="color:var(--text);font-size:16px;">${syllabusPct().toFixed(0)}%</b></div>
-        <div class="sub">Revision<br><b style="color:var(--text);font-size:16px;">${revisionPct().toFixed(0)}%</b></div>
-        <div class="sub">Current Streak<br><b style="color:var(--text);font-size:16px;${currentStreak()>=7?'text-shadow:0 0 14px var(--accent-500);':''}">${currentStreak()} 🔥</b></div>
-        <div class="sub">Total Hours<br><b style="color:var(--text);font-size:16px;">${totalHours().toFixed(1)}h</b></div>
-      </div>
+  <div class="section-title">
+    <h2>Today's Schedule</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add</button>
+      <button class="btn ghost sm" data-action="viewFullScheduler">Full Scheduler →</button>
     </div>
-    ${renderStudyHistoryCard()}
   </div>
+  ${renderTodaySchedule()}
 
-  <div class="section-title" style="margin-top:14px;">
-    <h2>Scheduler</h2>
-    <button class="btn ghost sm" data-action="openAddCustomRevision">+ Add / Schedule Item</button>
+  <div class="section-title"><h2>Needs Attention</h2></div>
+  ${renderNeedsAttention()}
+
+  <div class="grid g2" style="margin-top:14px;align-items:start;">
+    <div>
+      <div class="section-title" style="margin-top:0;"><h2>This Week</h2></div>
+      ${renderThisWeek()}
+    </div>
+    <div>
+      <div class="section-title" style="margin-top:0;"><h2>Yesterday</h2></div>
+      ${renderYesterdayCompact()}
+    </div>
   </div>
-  ${renderDashboardRevisions()}
 
   <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
   `;
 }
-function renderStudyHistoryCard(){
+/* ---- Today's Schedule: merges the auto revision queue + manually scheduled
+   items due today (and a lighter preview of tomorrow), reusing the exact
+   same underlying data/actions as the full Scheduler — nothing new is
+   computed here, this is purely a compact same-day view of it. ---- */
+function renderTodaySchedule(){
+  const today=todayStr();
+  const tmr=addDaysStr(today,1);
+  const q=revisionQueue();
+  const custom=(DB.customRevisions||[]).slice();
+  const todayItems=[
+    ...q.filter(r=>r.due===today).map(r=>({icon:'🔁',kindLabel:'Revision',sessCls:'',title:'Revise: '+esc(r.name),meta:esc(r.subject)+' · Rev '+r.revNum,
+      check:`data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}"`})),
+    ...custom.filter(c=>c.due===today).map(c=>({icon:c.kind==='session'?'📖':'🔁',kindLabel:c.kind==='session'?'Session':'Revision',sessCls:c.kind==='session'?'sess':'',
+      title:esc(c.text),meta:c.subject?esc(c.subject):'',check:`data-action="completeCustomRevision" data-id="${c.id}"`}))
+  ];
+  const tmrItems=[
+    ...q.filter(r=>r.due===tmr).map(r=>({icon:'🔁',title:'Revise: '+esc(r.name),meta:esc(r.subject)+' · Rev '+r.revNum})),
+    ...custom.filter(c=>c.due===tmr).map(c=>({icon:c.kind==='session'?'📖':'🔁',title:esc(c.text),meta:c.subject?esc(c.subject):''}))
+  ];
+  return `<div class="card">
+    ${todayItems.length===0?'<div class="emptystate schedule-empty">Nothing scheduled for today.</div>':
+    `<div class="schedule-list">${todayItems.map(it=>`
+      <div class="schedule-item">
+        <input type="checkbox" ${it.check} style="width:17px;height:17px;flex-shrink:0;cursor:pointer;">
+        <span class="schedule-check-icon">${it.icon}</span>
+        <div class="schedule-body"><div class="schedule-title">${it.title}</div>${it.meta?`<div class="schedule-tag">${it.meta}</div>`:''}</div>
+        <span class="schedule-kind ${it.sessCls}">${it.kindLabel}</span>
+      </div>`).join('')}</div>`}
+    ${tmrItems.length>0?`
+    <div class="sub" style="margin:14px 4px 4px;font-weight:700;color:var(--text);">Tomorrow (${tmrItems.length})</div>
+    <div class="schedule-list">${tmrItems.map(it=>`
+      <div class="schedule-item" style="opacity:.65;">
+        <span class="schedule-check-icon">${it.icon}</span>
+        <div class="schedule-body"><div class="schedule-title">${it.title}</div>${it.meta?`<div class="schedule-tag">${it.meta}</div>`:''}</div>
+      </div>`).join('')}</div>`:''}
+  </div>`;
+}
+/* ---- Needs Attention: signal pills for genuinely urgent things only.
+   Overdue items are deliberately excluded from Today's Schedule above so
+   nothing is shown twice — a revision only appears here once it's actually
+   late, not while it's simply due today. ---- */
+function renderNeedsAttention(){
+  const today=todayStr();
+  const q=revisionQueue();
+  const overdueRevisions=q.filter(r=>r.due<today).length+(DB.customRevisions||[]).filter(c=>c.kind!=='session'&&c.due<today).length;
+  const missedSessions=(DB.customRevisions||[]).filter(c=>c.kind==='session'&&c.due<today).length;
+  const overdueGoals=missedGoals().length;
+  const in48h=Date.now()+48*3600*1000;
+  const soonGoals=DB.goals.filter(g=>{
+    if(!g.deadline||g.status==='Completed')return false;
+    const dueBy=endOfDayIST(g.deadline);
+    return dueBy>=Date.now()&&dueBy<=in48h;
+  }).length;
+  const neglected=computeWeekStats(weekStartOf(today)).neglected;
+
+  const pills=[];
+  if(overdueRevisions>0)pills.push(`<div class="pill urgent"><span>⚠️</span><b>${overdueRevisions}</b> revision${overdueRevisions>1?'s':''} overdue</div>`);
+  if(missedSessions>0)pills.push(`<div class="pill urgent"><span>📋</span><b>${missedSessions}</b> missed session${missedSessions>1?'s':''}</div>`);
+  if(overdueGoals>0)pills.push(`<div class="pill urgent"><span>🚫</span><b>${overdueGoals}</b> goal${overdueGoals>1?'s':''} overdue</div>`);
+  if(soonGoals>0)pills.push(`<div class="pill warn"><span>⏰</span><b>${soonGoals}</b> goal${soonGoals>1?'s':''} due soon</div>`);
+  if(neglected.length>0)pills.push(`<div class="pill info"><span>📉</span>${neglected.slice(0,2).map(esc).join(', ')}${neglected.length>2?' +'+(neglected.length-2):''} neglected this week</div>`);
+
+  if(pills.length===0)return `<div class="card"><div class="emptystate schedule-empty">✅ All caught up — nothing urgent right now.</div></div>`;
+  return `<div class="card"><div class="pill-row">${pills.join('')}</div></div>`;
+}
+/* ---- This Week: compact 7-day activity strip + weekly goal, reusing the
+   exact same computeWeekStats()/hoursOn() the Weekly Report itself uses. ---- */
+function renderThisWeek(){
+  const today=todayStr();
+  const ws=weekStartOf(today);
+  const stats=computeWeekStats(ws);
+  const dates=weekDates(ws);
+  const dayLabels=['S','M','T','W','T','F','S'];
+  const maxH=Math.max(...dates.map(d=>hoursOn(d)),1);
+  return `<div class="card">
+    <div class="week-bars">
+      ${dates.map((d,i)=>{
+        const h=hoursOn(d), isToday=d===today;
+        return `<div class="week-bar-col"><div class="week-bar${isToday?' today':''}" style="height:${Math.max(4,h/maxH*100)}%;" title="${d}: ${h.toFixed(1)}h"></div><div class="week-bar-day">${dayLabels[i]}</div></div>`;
+      }).join('')}
+    </div>
+    <div class="flexbetween">
+      <span class="sub"><b style="color:var(--text);">${stats.hours.toFixed(1)}h</b> logged · ${stats.studyDays}/7 days</span>
+      <span class="sub">Goal <b style="color:var(--green);">${stats.goalPct}%</b></span>
+    </div>
+  </div>`;
+}
+/* ---- Yesterday: same DB.history data + openHistory action as before,
+   just laid out compactly with an explicit "View Report" link. ---- */
+function renderYesterdayCompact(){
   const y=addDaysStr(todayStr(),-1);
   const yEntry=(DB.history||[]).find(h=>h.date===y);
-  return `
-    <div class="card">
-      <div class="flexbetween" style="margin-bottom:8px;">
-        <div class="label">📅 Study History</div>
-        <button class="btn ghost sm" data-action="openHistory">View History</button>
-      </div>
-      ${yEntry?`
-      <div class="sub" style="margin-bottom:4px;">Yesterday</div>
-      <div style="font-size:13px;line-height:1.9;">
-        <div>• Goal Completion: <b>${yEntry.goalPct}%</b></div>
-        <div>• Study Time: <b>${fmtHrsMin(yEntry.studyHours)}</b></div>
-        <div>• Questions Solved: <b>${yEntry.questionsSolved}</b></div>
-        <div>• Revisions Completed: <b>${yEntry.revisionsCompleted}</b></div>
-      </div>`:`<div class="emptystate">No data recorded for yesterday yet.</div>`}
-    </div>`;
+  return `<div class="card card-solid">
+    ${yEntry?`
+    <div class="y-stat-row">
+      <div class="y-stat"><div class="y-stat-val">${fmtHrsMin(yEntry.studyHours)}</div><div class="y-stat-label">Studied</div></div>
+      <div class="y-stat"><div class="y-stat-val">${yEntry.questionsSolved}</div><div class="y-stat-label">Questions</div></div>
+      <div class="y-stat"><div class="y-stat-val">${yEntry.revisionsCompleted}</div><div class="y-stat-label">Revisions</div></div>
+    </div>
+    <button class="btn ghost sm" data-action="openHistory" style="width:100%;">View Report →</button>`:
+    `<div class="emptystate schedule-empty">No data recorded for yesterday yet.</div>`}
+  </div>`;
 }
-function ringSVG(pct){
-  const r=50,c=2*Math.PI*r,off=c-(Math.min(100,pct)/100)*c;
-  return `<svg width="120" height="120" viewBox="0 0 120 120">
-    <circle cx="60" cy="60" r="${r}" stroke="var(--bg-soft)" stroke-width="10" fill="none"/>
-    <circle class="ring-progress" cx="60" cy="60" r="${r}" stroke="var(--accent-600)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
+let ringIdCounter=0;
+function ringSVG(pct,size){
+  const s=size||120, r=s*0.4167, c=2*Math.PI*r, off=c-(Math.min(100,pct)/100)*c, gid='ringGrad'+(ringIdCounter++);
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="overflow:visible;">
+    <defs><linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="var(--atm-cyan,var(--accent-500))"/><stop offset="100%" stop-color="var(--accent-600)"/>
+    </linearGradient></defs>
+    <circle cx="${s/2}" cy="${s/2}" r="${r}" stroke="var(--bg-soft)" stroke-width="${s*0.0833}" fill="none"/>
+    <circle class="ring-progress" cx="${s/2}" cy="${s/2}" r="${r}" stroke="url(#${gid})" stroke-width="${s*0.0833}" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" style="filter:drop-shadow(0 0 8px rgba(45,227,255,.35));"/>
   </svg>`;
 }
 function badgeList(){
@@ -657,7 +742,7 @@ function renderSubjectDetail(k){
   <div class="card" style="margin-bottom:10px;">
     <button class="btn sm" data-action="openAddTopic" data-key="${k}">+ Add Topic</button>
   </div>
-  <div class="card" style="overflow-x:auto;">
+  <div class="card card-solid" style="overflow-x:auto;">
   <table><thead><tr>
     <th>Topic</th><th>Status</th><th>Target Date</th><th>Completion</th><th>Time (h)</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th>Notes</th><th>Mistakes</th><th></th>
   </tr></thead><tbody>
@@ -724,7 +809,7 @@ function renderLog(){
     <button class="btn" data-action="saveSession">Save Session</button>
   </div>
   <div class="section-title"><h2>Recent Entries</h2><span class="hint">${DB.sessions.length} total logged</span></div>
-  <div class="card" style="overflow-x:auto;">
+  <div class="card card-solid" style="overflow-x:auto;">
   ${sorted.length===0?'<div class="emptystate">No sessions logged yet. Add your first one above.</div>':`
   <table><thead><tr><th>Date</th><th>Hrs</th><th>Subject</th><th>Topic</th><th>Qs</th><th>Accuracy</th><th>Mood</th><th>Focus</th><th></th></tr></thead><tbody>
   ${sorted.map(s=>{
@@ -791,7 +876,7 @@ function renderGoals(){
   ${filterTypes.map(ty=>{
     const items=DB.goals.filter(g=>g.type===ty);
     return `<div class="section-title"><h2>${ty} Goals</h2><span class="hint">${items.length} active</span></div>
-    <div class="card">${items.length===0?'<div class="emptystate">No '+ty.toLowerCase()+' goals yet.</div>':`
+    <div class="card card-solid">${items.length===0?'<div class="emptystate">No '+ty.toLowerCase()+' goals yet.</div>':`
     <table><thead><tr><th>Goal</th><th>Deadline</th><th>Priority</th><th>Status</th><th>Progress</th><th></th></tr></thead><tbody>
     ${items.map(g=>`<tr><td style="min-width:180px;">${esc(g.text)}</td><td>${g.deadline||'—'}</td><td><span class="tag ${g.priority==='High'?'high':g.priority==='Low'?'low':'med'}">${g.priority}</span></td>
     <td><select data-action="goalStatus" data-id="${g.id}">${['Not Started','In Progress','Completed'].map(s=>`<option ${g.status===s?'selected':''}>${s}</option>`).join('')}</select></td>
@@ -863,7 +948,7 @@ function renderMocks(){
     <button class="btn" data-action="saveMock">Save Mock Test</button>
   </div>
   <div class="section-title"><h2>Mock Test History</h2></div>
-  <div class="card" style="overflow-x:auto;">
+  <div class="card card-solid" style="overflow-x:auto;">
   ${sorted.length===0?'<div class="emptystate">No mock tests logged yet.</div>':`
   <table><thead><tr><th>#</th><th>Date</th><th>Score</th><th>Accuracy</th><th>Neg. Marks</th><th>Time</th><th></th></tr></thead><tbody>
   ${sorted.map(m=>{
@@ -874,7 +959,7 @@ function renderMocks(){
   </tbody></table>`}
   </div>
   ${DB.mocks.length>=2?`<div class="section-title"><h2>Trend Charts</h2></div>
-  <div class="grid g2"><div class="card"><canvas id="mockScoreChart" height="180"></canvas></div><div class="card"><canvas id="mockAccChart" height="180"></canvas></div></div>`:''}
+  <div class="grid g2"><div class="card card-solid"><canvas id="mockScoreChart" height="180"></canvas></div><div class="card card-solid"><canvas id="mockAccChart" height="180"></canvas></div></div>`:''}
   `;
 }
 
@@ -898,7 +983,7 @@ function renderPyq(){
     <button class="btn" data-action="savePyq">Add Paper</button>
   </div>
   <div class="section-title"><h2>PYQ Papers</h2></div>
-  <div class="card" style="overflow-x:auto;">
+  <div class="card card-solid" style="overflow-x:auto;">
   ${DB.pyq.length===0?'<div class="emptystate">No PYQ papers logged yet.</div>':`
   <table><thead><tr><th>Paper</th><th>Year</th><th>Score</th><th>Accuracy</th><th>Status</th><th></th></tr></thead><tbody>
   ${DB.pyq.map(p=>`<tr><td>${esc(p.paper)}</td><td>${esc(p.year)}</td><td>${p.score}</td><td>${p.accuracy}%</td><td><span class="pill ${pillClass(p.status)}">${p.status}</span></td><td><button class="icon-only" data-action="deletePyq" data-id="${p.id}">🗑</button></td></tr>`).join('')}
@@ -940,8 +1025,8 @@ function renderAnalytics(){
 
   <div class="section-title"><h2>Trends</h2><span class="hint">Where your hours are going</span></div>
   <div class="grid g2">
-    <div class="card"><div class="label" style="margin-bottom:8px;">Hours per Subject</div><canvas id="subjHoursChart" height="200"></canvas></div>
-    <div class="card"><div class="label" style="margin-bottom:8px;">Hours per Week (last 8 weeks)</div><canvas id="weekHoursChart" height="200"></canvas></div>
+    <div class="card card-solid"><div class="label" style="margin-bottom:8px;">Hours per Subject</div><canvas id="subjHoursChart" height="200"></canvas></div>
+    <div class="card card-solid"><div class="label" style="margin-bottom:8px;">Hours per Week (last 8 weeks)</div><canvas id="weekHoursChart" height="200"></canvas></div>
   </div>
 
   <div class="section-title"><h2>Study Heatmap</h2><span class="hint">Last 91 days</span></div>
@@ -1093,7 +1178,7 @@ function renderWeekStatsHTML(stats,cmp){
   </div>
   ${cmp?`
   <div class="section-title"><h2>Week-over-Week Comparison</h2><span class="hint">vs previous week</span></div>
-  <div class="card" style="overflow-x:auto;">
+  <div class="card card-solid" style="overflow-x:auto;">
   <table><thead><tr><th>Metric</th><th>Previous Week</th><th>This Week</th><th>Change</th></tr></thead><tbody>
     <tr><td>Study Hours</td><td>${cmp.hours.prev.toFixed(1)}h</td><td>${cmp.hours.cur.toFixed(1)}h</td><td style="${dcolor(cmp.hours.diff)}">${arrow(cmp.hours.diff)} ${Math.abs(cmp.hours.diff).toFixed(1)}h</td></tr>
     <tr><td>Questions Solved</td><td>${cmp.questions.prev}</td><td>${cmp.questions.cur}</td><td style="${dcolor(cmp.questions.diff)}">${arrow(cmp.questions.diff)} ${Math.abs(cmp.questions.diff)}</td></tr>
@@ -1511,16 +1596,16 @@ function updateStudySessionUI(){
   const modeEl=document.getElementById('studySessionMode'); if(modeEl)modeEl.textContent=pomo.mode==='Work'?'🎯 Study Session':'☕ Break';
   const startBtn=document.getElementById('studySessionStartBtn'); if(startBtn)startBtn.textContent=pomo.running?'Pause':'Start';
   const totalEl=document.getElementById('studySessionTotal'); if(totalEl)totalEl.textContent='Today: '+fmtHrsMin(todayStudyTime());
-  // keep the Today's Goal card and progress ring in sync live, without a full re-render
+  // keep the Today's Goal ring in sync live, without a full re-render
   const goalValueEl=document.getElementById('todayGoalValue');
-  if(goalValueEl)goalValueEl.textContent=todayStudyTime().toFixed(1)+' / '+todayTarget()+'h';
+  if(goalValueEl)goalValueEl.textContent=todayStudyTime().toFixed(1)+'h';
   const ringWrap=document.getElementById('todayRingWrap');
   if(ringWrap){
     const target=todayTarget();
     const pct=Math.min(100,target?todayStudyTime()/target*100:0);
     const circle=ringWrap.querySelector('.ring-progress');
     if(circle){
-      const r=50,c=2*Math.PI*r;
+      const r=Number(circle.getAttribute('r'))||50, c=2*Math.PI*r;
       circle.setAttribute('stroke-dashoffset',c-(pct/100)*c);
     }
     const b=ringWrap.querySelector('.ring-label b')||ringWrap.parentElement.querySelector('.ring-label b');
@@ -1660,6 +1745,12 @@ function handleAction(action,btn){
     scheduleSave(); closeModal(); render(); return;
   }
   /* ---- Scheduler: freeform or topic-linked revisions, and planned study sessions ---- */
+  if(action==='viewFullScheduler'){
+    openModal(`<div class="flexbetween" style="margin-bottom:10px;"><h3 style="margin:0;">📅 Full Scheduler</h3><button class="btn sm" data-action="openAddCustomRevision">+ Add / Schedule Item</button></div>
+    <div style="max-height:68vh;overflow-y:auto;">${renderDashboardRevisions()}</div>
+    <div class="row" style="margin-top:14px;"><button class="btn ghost" data-action="closeModal">Close</button></div>`, true);
+    return;
+  }
   if(action==='openAddCustomRevision'){
     openModal(`<h3>Plan a Revision or Study Session</h3>
     <div class="formgrid" style="grid-template-columns:1fr;">
@@ -2017,6 +2108,14 @@ document.addEventListener('drop',e=>{
 /* ================= CHARTS ================= */
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function afterRenderHooks(){
+  // Chart.js defaults to dark gray axis/legend text, which is unreadable on
+  // dark cards. This was already true before the v3 visual pass — fixing it
+  // here since it's a pure readability/color setting, not a data change.
+  const isDark=document.documentElement.classList.contains('dark');
+  if(typeof Chart!=='undefined'){
+    Chart.defaults.color=isDark?'#a79fc9':'#665c85';
+    Chart.defaults.borderColor=isDark?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)';
+  }
   if(currentTab==='mocks'&&currentSubtab.mocks==='mocks'&&DB.mocks.length>=2){
     const sorted=[...DB.mocks].sort((a,b)=>a.number-b.number);
     destroyChart('mockScoreChart'); destroyChart('mockAccChart');
