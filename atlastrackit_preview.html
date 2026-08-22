@@ -978,22 +978,23 @@ function renderDashboard(){
 
         <details class="session-settings" ${heroSettingsOpen?'open':''}>
           <summary>⚙ Session Settings</summary>
+          ${pomo.running?'<div class="sub" style="margin:0 0 8px;">Switching logs your progress so far under the current subject/topic first.</div>':''}
           <div class="sub" style="margin-bottom:6px;">Subject</div>
           <div class="tabsrow">
-            ${subjectKeys().map(k=>`<button class="${pomo.subjectKey===k?'active':''}" data-action="setPomoSubjectBtn" data-key="${k}" ${pomo.running?'disabled':''}>${esc(subjLabel(k))}</button>`).join('')}
+            ${subjectKeys().map(k=>`<button class="${pomo.subjectKey===k?'active':''}" data-action="setPomoSubjectBtn" data-key="${k}">${esc(subjLabel(k))}</button>`).join('')}
           </div>
           ${pomo.subjectKey&&(DB.subjects[pomo.subjectKey]?.topics||[]).length?`
           <div class="sub" style="margin:10px 0 6px;">Topic</div>
           <div class="tabsrow" style="max-height:96px;overflow-y:auto;">
-            ${(DB.subjects[pomo.subjectKey].topics||[]).map(t=>`<button class="${pomo.topicId===t.id?'active':''}" data-action="setPomoTopicBtn" data-id="${t.id}" ${pomo.running?'disabled':''}>${esc(t.name)}</button>`).join('')}
+            ${(DB.subjects[pomo.subjectKey].topics||[]).map(t=>`<button class="${pomo.topicId===t.id?'active':''}" data-action="setPomoTopicBtn" data-id="${t.id}">${esc(t.name)}</button>`).join('')}
           </div>`:''}
           <div class="sub" style="margin:10px 0 6px;">Session Type</div>
           <div class="tabsrow">
-            <button class="${pomo.sessionType!=='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Study" ${pomo.running?'disabled':''}>🎯 Study Session</button>
-            <button class="${pomo.sessionType==='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Revision" ${pomo.running?'disabled':''}>🔁 Revision</button>
+            <button class="${pomo.sessionType!=='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Study">🎯 Study Session</button>
+            <button class="${pomo.sessionType==='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Revision">🔁 Revision</button>
           </div>
           <div class="formgrid" style="grid-template-columns:1fr;margin-top:10px;margin-bottom:0;">
-            <label>Subtopic (optional) <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
+            <label>Subtopic (optional) <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics"></label>
           </div>
           <div style="margin-top:14px;">
             <div class="sub" style="margin-bottom:6px;">Presets</div>
@@ -2071,6 +2072,17 @@ function logCompletedWorkBlock(){
   scheduleSave();
   return true;
 }
+/* Call before switching subject/topic/session-type mid-session — logs whatever
+   time has already accumulated under the OLD subject/topic first, so switching
+   what you're studying never silently reattributes earlier minutes to the new
+   one. Returns the elapsed minutes logged (0 if there was nothing to save). */
+function checkpointStudyTimerForSwitch(){
+  if(pomo.running&&pomo.mode==='Work'&&studyTimer.seconds>0){
+    const mins=Math.round(studyTimer.seconds/60);
+    if(logCompletedWorkBlock())return mins;
+  }
+  return 0;
+}
 function pomoTick(){
   checkDayRollover();
   pomo.seconds--;
@@ -2610,9 +2622,28 @@ function handleAction(action,btn){
     if(!pomo.running){ pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); }
     scheduleSave(); savePomoState(); render(); return;
   }
-  if(action==='setPomoSubjectBtn'){ pomo.subjectKey=d.key; pomo.topicId=''; savePomoState(); render(); return; }
-  if(action==='setPomoTopicBtn'){ pomo.topicId=d.id; savePomoState(); render(); return; }
-  if(action==='setPomoSessionTypeBtn'){ pomo.sessionType=d.type==='Revision'?'Revision':'Study'; savePomoState(); render(); return; }
+  if(action==='setPomoSubjectBtn'){
+    if(d.key===pomo.subjectKey)return;
+    const mins=checkpointStudyTimerForSwitch();
+    pomo.subjectKey=d.key; pomo.topicId=''; savePomoState(); render();
+    if(mins>0)celebrate('Logged '+mins+'m — switched subject','🔀');
+    return;
+  }
+  if(action==='setPomoTopicBtn'){
+    if(d.id===pomo.topicId)return;
+    const mins=checkpointStudyTimerForSwitch();
+    pomo.topicId=d.id; savePomoState(); render();
+    if(mins>0)celebrate('Logged '+mins+'m — switched topic','🔀');
+    return;
+  }
+  if(action==='setPomoSessionTypeBtn'){
+    const newType=d.type==='Revision'?'Revision':'Study';
+    if(newType===pomo.sessionType)return;
+    const mins=checkpointStudyTimerForSwitch();
+    pomo.sessionType=newType; savePomoState(); render();
+    if(mins>0)celebrate('Logged '+mins+'m before switching','🔀');
+    return;
+  }
   if(action==='exportData'){
     const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
