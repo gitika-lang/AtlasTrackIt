@@ -204,6 +204,7 @@ html.dark .pill.revised{color:var(--accent-500);}
 .tabsrow button{border:1px solid var(--border);background:var(--card);color:var(--text-muted);border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;transition:.15s;}
 .tabsrow button:hover{border-color:var(--accent-500);color:var(--accent-600);transform:translateY(-1px);}
 .tabsrow button.active{background:linear-gradient(120deg,var(--accent-600),var(--accent-700));color:#fff;border-color:var(--accent-600);}
+.tabsrow button:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 .subnav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:14px;}
 .subnav button{border:1px solid var(--border);background:var(--card);color:var(--text-muted);border-radius:99px;padding:7px 14px;font-size:12.5px;font-weight:600;transition:.15s;display:flex;align-items:center;gap:6px;}
 .subnav button:hover{border-color:var(--accent-500);color:var(--accent-600);transform:translateY(-1px);}
@@ -242,12 +243,6 @@ html.dark .badge.unlocked{color:var(--accent-500);}
 .ring-wrap.mini .ring-label b{font-size:12px;}
 .ring-wrap.mini .ring-label span{display:none;}
 .ring-wrap.hero-ring{margin:0;flex-shrink:0;width:170px;height:170px;}
-.ring-wrap.hero-ring:before{
-  content:'';position:absolute;inset:-16px;pointer-events:none;opacity:0;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 182 182'%3E%3Cpath d='M91 8 C126 9,152 30,164 58 C175 84,169 116,148 137 C129 156,97 164,68 153 C42 143,23 119,22 89 C21 62,37 31,64 16 C75 9,84 7,91 8 Z' fill='none' stroke='%23ff5fc4' stroke-width='2' stroke-dasharray='5 7' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-size:contain;background-repeat:no-repeat;animation:doodleRingIn .6s var(--ease) .9s forwards;
-}
-@keyframes doodleRingIn{to{opacity:.55;}}
 .ring-wrap svg{transform:rotate(-90deg);}
 .ring-progress{transition:stroke-dashoffset .7s var(--ease);}
 .ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;}
@@ -281,6 +276,11 @@ html.dark .session-row{background:rgba(255,255,255,.04);border-color:rgba(255,25
 .session-settings summary:before{content:'▸ ';display:inline-block;transition:transform .15s var(--ease);}
 .session-settings[open] summary:before{transform:rotate(90deg);}
 .session-settings[open] summary{margin-bottom:4px;}
+.session-settings .formgrid{gap:8px;margin-bottom:8px;}
+.session-settings .formgrid label{font-size:10.5px;}
+.session-settings select,.session-settings input{padding:5px 8px;font-size:12px;}
+.session-settings .sub{margin-bottom:4px;}
+.session-settings > div:last-child{margin-top:10px!important;}
 .checkbox-row{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 0;}
 .checkbox-row input{width:16px;height:16px;}
 .icon-only{background:transparent;border:none;color:var(--text-faint);font-size:13px;padding:3px;transition:color .15s,transform .15s;}
@@ -468,6 +468,19 @@ html.dark .modal:before{content:'';position:absolute;top:0;left:14px;right:14px;
   .pill-row{gap:8px;}
   .pill{font-size:11px;padding:7px 12px;}
   .schedule-item{padding:9px 10px;}
+}
+
+/* Suppresses the one-shot "pop in" entrance animations when a view is just
+   being updated in place (e.g. typing in a field, checking a box) rather than
+   genuinely opened for the first time — see the isFreshView check in render().
+   Continuous/status animations (.live-dot, streak glow, background drift)
+   are deliberately NOT included here, since those should keep running. */
+#view.no-entrance-anim .card,
+#view.no-entrance-anim .section-title,
+#view.no-entrance-anim .ring-wrap,
+#view.no-entrance-anim .bar>span,
+#view.no-entrance-anim .badge.unlocked{
+  animation-duration:.001s!important;animation-delay:0s!important;
 }
 
 /* ---------- Respect reduced motion ---------- */

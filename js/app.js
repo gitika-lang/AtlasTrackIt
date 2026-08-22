@@ -340,6 +340,7 @@ function subnavHtml(group){
   return `<div class="subnav">${SUBTABS[group].map(it=>`<button class="${currentSubtab[group]===it.key?'active':''}" data-action="subtab" data-tabgroup="${group}" data-sub="${it.key}"><span>${it.ic}</span>${it.label}</button>`).join('')}</div>`;
 }
 
+let lastRenderKey=null; // tracks tab+subtab+subject so we only replay entrance animations on a genuinely new view, not on every field edit
 function render(){
   renderNav();
   document.getElementById('pageTitle').textContent=TABS.find(t=>t.id===currentTab).label;
@@ -348,11 +349,15 @@ function render(){
   if(streakEl)streakEl.classList.toggle('streak-hot',currentStreak()>=7);
   checkBadgeUnlocks();
   const view=document.getElementById('view');
+  const renderKey=currentTab+'|'+(currentSubtab[currentTab]||'')+'|'+(openSubject||'');
+  const isFreshView=renderKey!==lastRenderKey;
+  lastRenderKey=renderKey;
   if(currentTab==='dashboard')view.innerHTML=renderDashboard();
   else if(currentTab==='study')view.innerHTML=renderStudyPage();
   else if(currentTab==='goals')view.innerHTML=renderGoalsPage();
   else if(currentTab==='mocks')view.innerHTML=renderMocksPage();
   else if(currentTab==='settings')view.innerHTML=renderSettingsPage();
+  view.classList.toggle('no-entrance-anim',!isFreshView);
   afterRenderHooks();
   closeMobileSidebar();
 }
@@ -431,22 +436,24 @@ function renderDashboard(){
         </div>
         <div class="sub" id="studySessionTotal">Today: ${fmtHrsMin(todayStudyTime())}</div>
 
-        <details class="session-settings">
+        <details class="session-settings" ${heroSettingsOpen?'open':''}>
           <summary>⚙ Session Settings</summary>
-          <div class="formgrid" style="grid-template-columns:1fr 1fr;margin-top:12px;margin-bottom:0;">
-            <label>Subject <select data-action="setPomoSubject" ${pomo.running?'disabled':''}>
-              <option value="">— none —</option>
-              ${subjectKeys().map(k=>`<option value="${k}" ${pomo.subjectKey===k?'selected':''}>${esc(subjLabel(k))}</option>`).join('')}
-            </select></label>
-            <label>Topic <select data-action="setPomoTopic" ${pomo.running||!pomo.subjectKey?'disabled':''}>
-              <option value="">— none —</option>
-              ${(DB.subjects[pomo.subjectKey]?.topics||[]).map(t=>`<option value="${t.id}" ${pomo.topicId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}
-            </select></label>
-            <label>Subtopic <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
-            <label>Session Type <select data-action="setPomoSessionType" ${pomo.running?'disabled':''}>
-              <option value="Study" ${pomo.sessionType!=='Revision'?'selected':''}>🎯 Study Session</option>
-              <option value="Revision" ${pomo.sessionType==='Revision'?'selected':''}>🔁 Revision</option>
-            </select></label>
+          <div class="sub" style="margin-bottom:6px;">Subject</div>
+          <div class="tabsrow">
+            ${subjectKeys().map(k=>`<button class="${pomo.subjectKey===k?'active':''}" data-action="setPomoSubjectBtn" data-key="${k}" ${pomo.running?'disabled':''}>${esc(subjLabel(k))}</button>`).join('')}
+          </div>
+          ${pomo.subjectKey&&(DB.subjects[pomo.subjectKey]?.topics||[]).length?`
+          <div class="sub" style="margin:10px 0 6px;">Topic</div>
+          <div class="tabsrow" style="max-height:96px;overflow-y:auto;">
+            ${(DB.subjects[pomo.subjectKey].topics||[]).map(t=>`<button class="${pomo.topicId===t.id?'active':''}" data-action="setPomoTopicBtn" data-id="${t.id}" ${pomo.running?'disabled':''}>${esc(t.name)}</button>`).join('')}
+          </div>`:''}
+          <div class="sub" style="margin:10px 0 6px;">Session Type</div>
+          <div class="tabsrow">
+            <button class="${pomo.sessionType!=='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Study" ${pomo.running?'disabled':''}>🎯 Study Session</button>
+            <button class="${pomo.sessionType==='Revision'?'active':''}" data-action="setPomoSessionTypeBtn" data-type="Revision" ${pomo.running?'disabled':''}>🔁 Revision</button>
+          </div>
+          <div class="formgrid" style="grid-template-columns:1fr;margin-top:10px;margin-bottom:0;">
+            <label>Subtopic (optional) <input type="text" data-action="setPomoSubtopic" value="${esc(pomo.subtopic||'')}" placeholder="e.g. Laws of Thermodynamics" ${pomo.running?'disabled':''}></label>
           </div>
           <div style="margin-top:14px;">
             <div class="sub" style="margin-bottom:6px;">Presets</div>
@@ -595,12 +602,15 @@ function renderYesterdayCompact(){
 let ringIdCounter=0;
 function ringSVG(pct,size){
   const s=size||120, r=s*0.4167, c=2*Math.PI*r, off=c-(Math.min(100,pct)/100)*c, gid='ringGrad'+(ringIdCounter++);
+  // Colors are set via inline style="" (not bare presentation attributes) because
+  // var() resolution inside raw SVG attributes like stroke="var(...)" is unreliable
+  // across browsers — style="" is guaranteed to run through the normal CSS cascade.
   return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="overflow:visible;">
     <defs><linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="var(--atm-cyan,var(--accent-500))"/><stop offset="100%" stop-color="var(--accent-600)"/>
+      <stop offset="0%" style="stop-color:var(--atm-cyan,var(--accent-500));"/><stop offset="100%" style="stop-color:var(--accent-600);"/>
     </linearGradient></defs>
-    <circle cx="${s/2}" cy="${s/2}" r="${r}" stroke="var(--bg-soft)" stroke-width="${s*0.0833}" fill="none"/>
-    <circle class="ring-progress" cx="${s/2}" cy="${s/2}" r="${r}" stroke="url(#${gid})" stroke-width="${s*0.0833}" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" style="filter:drop-shadow(0 0 8px rgba(45,227,255,.35));"/>
+    <circle cx="${s/2}" cy="${s/2}" r="${r}" style="stroke:var(--bg-soft);" stroke-width="${s*0.0833}" fill="none"/>
+    <circle class="ring-progress" cx="${s/2}" cy="${s/2}" r="${r}" style="stroke:url(#${gid});filter:drop-shadow(0 0 8px rgba(45,227,255,.35));" stroke-width="${s*0.0833}" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
   </svg>`;
 }
 function badgeList(){
@@ -849,6 +859,7 @@ function renderUpcomingDeadlines(){
   </div>`;
 }
 let goalTypeFilter='All';
+let heroSettingsOpen=false; // preserves the Session Settings <details> open/closed state across re-renders
 function renderGoals(){
   ensureGoalForm(); const f=formTemp.goal;
   const types=['Yearly','Monthly','Weekly','Daily'];
@@ -1539,7 +1550,10 @@ function pomoTick(){
       studyTimer.running=false;
     }
   }
-  updateStudySessionUI();
+  // updateStudySessionUI() only touches elements that exist while the Dashboard
+  // is the active tab — but wrapping it defensively means a UI-sync issue can
+  // never interrupt the tick itself or the state save that follows it, on any tab.
+  try{ updateStudySessionUI(); }catch(e){ /* ignore — the timer state above is unaffected */ }
   savePomoState();
 }
 function beginOrPauseStudySession(){
@@ -1574,13 +1588,14 @@ function openStartSessionModal(subjectKeyOverride){
 }
 function pomoStartPause(){
   pomo.running=!pomo.running;
+  clearInterval(pomo.interval); // always clear first — guards against ever accidentally stacking a duplicate interval
   if(pomo.running){
     if(pomo.mode==='Work')studyTimer.running=true;
     pomo.interval=setInterval(pomoTick,1000);
     const topic=pomoSelectedTopic();
     if(pomo.sessionType!=='Revision'&&topic&&topic.status==='Not Started'){ topic.status='In Progress'; scheduleSave(); }
   }else{
-    clearInterval(pomo.interval); studyTimer.running=false;
+    studyTimer.running=false;
   }
   updateStudySessionUI();
   savePomoState();
@@ -1622,6 +1637,14 @@ function openMobileSidebar(){document.getElementById('sidebar').classList.add('o
 function closeMobileSidebar(){document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show');}
 
 /* ================= EVENT HANDLING ================= */
+// 'toggle' events on <details> don't bubble, so this must be a capturing listener
+// to catch it via delegation. Keeps the Session Settings panel's open/closed state
+// stable across the full-DOM re-renders that happen when a field inside it changes.
+document.addEventListener('toggle', e=>{
+  if(e.target && e.target.classList && e.target.classList.contains('session-settings')){
+    heroSettingsOpen=e.target.open;
+  }
+}, true);
 document.addEventListener('click',e=>{
   if(e.target.closest('[data-stop]') && e.target.closest('.modal-overlay') && !e.target.closest('[data-action]')) return;
   const bg=e.target.closest('[data-action="closeModalBg"]');
@@ -1643,11 +1666,8 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setQuestionTarget'){ DB.meta.questionTarget=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
-  if(t.dataset.action==='setPomoSubject'){ pomo.subjectKey=t.value; pomo.topicId=''; savePomoState(); render(); }
   if(t.id==='ss_topic'){ const w=document.getElementById('ss_newtopic_wrap'); if(w)w.style.display=(t.value==='__new__')?'flex':'none'; }
-  if(t.dataset.action==='setPomoTopic'){ pomo.topicId=t.value; savePomoState(); }
   if(t.dataset.action==='setPomoSubtopic'){ pomo.subtopic=t.value; savePomoState(); }
-  if(t.dataset.action==='setPomoSessionType'){ pomo.sessionType=t.value==='Revision'?'Revision':'Study'; savePomoState(); render(); }
   if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='setPomoBreak'){ DB.meta.pomoBreak=Number(t.value)||5; if(!pomo.running&&pomo.mode==='Break'){pomo.seconds=DB.meta.pomoBreak*60;} scheduleSave(); savePomoState(); render(); }
   if(t.dataset.action==='togglePomoAuto'){ DB.meta.pomoAutoTransition=t.checked; scheduleSave(); }
@@ -2050,6 +2070,9 @@ function handleAction(action,btn){
     if(!pomo.running){ pomo.mode='Work'; pomo.seconds=pomoDurationSeconds('Work'); }
     scheduleSave(); savePomoState(); render(); return;
   }
+  if(action==='setPomoSubjectBtn'){ pomo.subjectKey=d.key; pomo.topicId=''; savePomoState(); render(); return; }
+  if(action==='setPomoTopicBtn'){ pomo.topicId=d.id; savePomoState(); render(); return; }
+  if(action==='setPomoSessionTypeBtn'){ pomo.sessionType=d.type==='Revision'?'Revision':'Study'; savePomoState(); render(); return; }
   if(action==='exportData'){
     const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
