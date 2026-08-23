@@ -1356,17 +1356,13 @@ function renderSubjectDetail(k){
     <div class="card stat"><div class="label">Avg Time / Topic</div><div class="value">${st.avgPerTopic.toFixed(1)}h</div></div>
     <div class="card stat"><div class="label">Revision Pending</div><div class="value">${st.revisionPending}</div></div>
   </div>
-  <div class="grid g2" style="margin-top:10px;">
-    <div class="card"><div class="label">Weak Topics (confidence ≤2)</div><div style="margin-top:6px;">${st.weak.length?st.weak.map(w=>`<span class="tag high" style="margin:2px;">${esc(w)}</span>`).join(''):'<span class="sub">None yet</span>'}</div></div>
-    <div class="card"><div class="label">Strong Topics (confidence ≥4)</div><div style="margin-top:6px;">${st.strong.length?st.strong.map(w=>`<span class="tag low" style="margin:2px;">${esc(w)}</span>`).join(''):'<span class="sub">None yet</span>'}</div></div>
-  </div>
-  <div class="section-title"><h2>Topic Tracker</h2><span class="hint">Update inline — status, dates, confidence & time save instantly</span></div>
+  <div class="section-title"><h2>Topic Tracker</h2><span class="hint">Update inline — status, lectures & revisions save instantly</span></div>
   <div class="card" style="margin-bottom:10px;">
     <button class="btn sm" data-action="openAddTopic" data-key="${k}">+ Add Topic</button>
   </div>
   <div class="card card-solid" style="overflow-x:auto;">
   <table><thead><tr>
-    <th>Topic</th><th>Status</th><th>Lectures</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th></th>
+    <th>Topic</th><th>Status</th><th>Lectures</th><th>Revisions</th><th></th>
   </tr></thead><tbody>
   ${topics.map(t=>`<tr data-topic="${t.id}">
     <td style="min-width:160px;">${esc(t.name)} <button class="icon-only" data-action="openEditTopicName" data-topic="${t.id}" data-key="${k}" title="Rename topic">✏</button></td>
@@ -1374,8 +1370,6 @@ function renderSubjectDetail(k){
       ${['Not Started','In Progress','Completed','Revised'].map(o=>`<option ${t.status===o?'selected':''}>${o}</option>`).join('')}
     </select></td>
     <td style="min-width:150px;">${renderLectureCell(t,k)}</td>
-    <td><select data-field="confidence" data-topic="${t.id}" data-key="${k}">${[1,2,3,4,5].map(n=>`<option ${t.confidence==n?'selected':''}>${n}</option>`).join('')}</select></td>
-    <td><select data-field="difficulty" data-topic="${t.id}" data-key="${k}">${['Easy','Medium','Hard'].map(o=>`<option ${t.difficulty===o?'selected':''}>${o}</option>`).join('')}</select></td>
     <td style="white-space:nowrap;">
       <span class="mono">${t.revisions}</span>
       <button class="icon-only" data-action="addRevision" data-topic="${t.id}" data-key="${k}" title="Log a revision">＋</button>
