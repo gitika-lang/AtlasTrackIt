@@ -1666,40 +1666,51 @@ function weekComparison(cur,prev){
 /* Renders one week's Summary + Review body. Shared by the live current-week view
    and by archived/snapshot detail views — same data shape, same layout. */
 function renderWeekStatsHTML(stats,cmp){
+  // Defensive fallbacks: entries saved by an earlier version of this feature
+  // (or any other unexpected shape) could be missing a field. Without these,
+  // a single undefined field here throws while building this HTML string —
+  // which means the modal never opens at all, silently, since openModal()
+  // is never reached. Better to render with sensible defaults than fail closed.
+  stats=stats||{};
+  const subjectBreakdown=stats.subjectBreakdown||[];
+  const topTopics=stats.topTopics||[];
+  const neglected=stats.neglected||[];
+  const missedGoalsList=stats.missedGoalsList||[];
+  const hours=Number(stats.hours)||0;
   const arrow=n=>n>0?'▲':n<0?'▼':'—';
   const dcolor=n=>n>0?'color:var(--green);':n<0?'color:var(--red);':'';
   return `
-  <div class="section-title"><h2>Weekly Summary</h2><span class="hint">${stats.weekStart} → ${stats.weekEnd}</span></div>
+  <div class="section-title"><h2>Weekly Summary</h2><span class="hint">${stats.weekStart||''} → ${stats.weekEnd||''}</span></div>
   <div class="grid g4">
-    <div class="card stat"><div class="label">Total Study Hours</div><div class="value">${stats.hours.toFixed(1)}h</div></div>
-    <div class="card stat"><div class="label">Study Days</div><div class="value">${stats.studyDays} / 7</div></div>
-    <div class="card stat"><div class="label">Study Sessions</div><div class="value">${stats.sessionsCount}</div></div>
-    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${stats.questions}</div></div>
+    <div class="card stat"><div class="label">Total Study Hours</div><div class="value">${hours.toFixed(1)}h</div></div>
+    <div class="card stat"><div class="label">Study Days</div><div class="value">${stats.studyDays||0} / 7</div></div>
+    <div class="card stat"><div class="label">Study Sessions</div><div class="value">${stats.sessionsCount||0}</div></div>
+    <div class="card stat"><div class="label">Questions Solved</div><div class="value">${stats.questions||0}</div></div>
   </div>
   <div class="grid g4" style="margin-top:12px;">
-    <div class="card stat"><div class="label">Revisions Completed</div><div class="value">${stats.revisions}</div></div>
-    <div class="card stat"><div class="label">Weekly Goal</div><div class="value">${stats.goalPct}%</div></div>
-    <div class="card stat"><div class="label">Mock Tests</div><div class="value">${stats.mocksCount}</div></div>
-    <div class="card stat"><div class="label">Accuracy</div><div class="value">${stats.accuracy!==null?stats.accuracy+'%':'—'}</div></div>
+    <div class="card stat"><div class="label">Revisions Completed</div><div class="value">${stats.revisions||0}</div></div>
+    <div class="card stat"><div class="label">Weekly Goal</div><div class="value">${stats.goalPct||0}%</div></div>
+    <div class="card stat"><div class="label">Mock Tests</div><div class="value">${stats.mocksCount||0}</div></div>
+    <div class="card stat"><div class="label">Accuracy</div><div class="value">${stats.accuracy!==null&&stats.accuracy!==undefined?stats.accuracy+'%':'—'}</div></div>
   </div>
   <div class="section-title"><h2>Subject Breakdown</h2></div>
   <div class="grid g3">
-    ${stats.subjectBreakdown.map(s=>`<div class="card"><div class="label">${esc(s.label)}</div><div class="value" style="font-size:18px;">${s.hours.toFixed(1)}h</div></div>`).join('')}
+    ${subjectBreakdown.map(s=>`<div class="card"><div class="label">${esc(s.label)}</div><div class="value" style="font-size:18px;">${(Number(s.hours)||0).toFixed(1)}h</div></div>`).join('')}
   </div>
 
   <div class="section-title"><h2>Weekly Review</h2><span class="hint">Balance & insights</span></div>
   <div class="grid g2">
     <div class="card">
       <div class="label" style="margin-bottom:8px;">Preparation Balance</div>
-      <div class="value" style="font-size:24px;">${stats.balance}%</div>
-      <div class="bar"><span style="width:${stats.balance}%"></span></div>
+      <div class="value" style="font-size:24px;">${stats.balance||0}%</div>
+      <div class="bar"><span style="width:${stats.balance||0}%"></span></div>
       <div class="sub" style="margin-top:6px;">How evenly study time was spread across subjects this week.</div>
     </div>
     <div class="card">
       <div class="label" style="margin-bottom:8px;">Consistency</div>
-      <div class="value" style="font-size:24px;">${stats.consistencyPct}%</div>
-      <div class="bar"><span style="width:${stats.consistencyPct}%"></span></div>
-      <div class="sub" style="margin-top:6px;">${stats.studyDays} of 7 days had logged study time.</div>
+      <div class="value" style="font-size:24px;">${stats.consistencyPct||0}%</div>
+      <div class="bar"><span style="width:${stats.consistencyPct||0}%"></span></div>
+      <div class="sub" style="margin-top:6px;">${stats.studyDays||0} of 7 days had logged study time.</div>
     </div>
   </div>
   <div class="grid g2" style="margin-top:14px;align-items:stretch;">
@@ -1707,16 +1718,16 @@ function renderWeekStatsHTML(stats,cmp){
       <div class="label" style="margin-bottom:8px;">Subject Focus</div>
       <div class="sub" style="line-height:1.9;font-size:12.5px;">
         Most studied subject: <b style="color:var(--text);">${stats.strongest||'—'}</b><br>
-        Most studied topics: <b style="color:var(--text);">${stats.topTopics.length?stats.topTopics.join(', '):'—'}</b><br>
-        Subjects needing attention: <b style="color:var(--text);">${stats.neglected.length?stats.neglected.join(', '):'None — solid coverage'}</b>
+        Most studied topics: <b style="color:var(--text);">${topTopics.length?topTopics.join(', '):'—'}</b><br>
+        Subjects needing attention: <b style="color:var(--text);">${neglected.length?neglected.join(', '):'None — solid coverage'}</b>
       </div>
     </div>
     <div class="card">
       <div class="label" style="margin-bottom:8px;">Revision Performance</div>
       <div class="sub" style="line-height:1.9;font-size:12.5px;">
-        Revisions completed this week: <b style="color:var(--text);">${stats.revisions}</b><br>
+        Revisions completed this week: <b style="color:var(--text);">${stats.revisions||0}</b><br>
         All-time revision completion: <b style="color:var(--text);">${revisionPct().toFixed(0)}%</b><br>
-        Recommendation: ${stats.neglected.length?'Rotate in '+esc(stats.neglected[0])+' before the week ends.':'Maintain current rotation, add a mock test.'}
+        Recommendation: ${neglected.length?'Rotate in '+esc(neglected[0])+' before the week ends.':'Maintain current rotation, add a mock test.'}
       </div>
     </div>
   </div>
@@ -1724,7 +1735,7 @@ function renderWeekStatsHTML(stats,cmp){
     <div class="card">
       <div class="label" style="margin-bottom:8px;">Goals — This Week</div>
       <div class="sub" style="line-height:1.9;font-size:12.5px;">
-        ${stats.missedGoalsCount>0?`Missed / overdue: <b style="color:var(--red,#ef4444);">${stats.missedGoalsCount}</b><br>${stats.missedGoalsList.map(t=>'⚠ '+esc(t)).join('<br>')}`:'No goals were missed this week — nice work.'}
+        ${(stats.missedGoalsCount||0)>0?`Missed / overdue: <b style="color:var(--red,#ef4444);">${stats.missedGoalsCount}</b><br>${missedGoalsList.map(t=>'⚠ '+esc(t)).join('<br>')}`:'No goals were missed this week — nice work.'}
       </div>
     </div>
   </div>
@@ -1759,7 +1770,7 @@ function renderWeeklyReport(){
   const monthHours=monthSessions.reduce((a,b)=>a+Number(b.hours||0),0);
   const monthMocks=DB.mocks.filter(m=>new Date(m.date)>=monthAgo);
 
-  const archiveCount=(DB.weeklyReports||[]).length;
+  const archiveCount=(DB.weeklyReports||[]).filter(r=>r&&r.stats).length;
 
   return `
   <div class="section-title"><h2>Smart Recommendations</h2><span class="hint">Auto-generated from your logged data</span></div>
@@ -2547,30 +2558,40 @@ function handleAction(action,btn){
     return;
   }
   if(action==='viewWeeklyArchive'){
-    const rows=(DB.weeklyReports||[]).slice().sort((a,b)=>b.savedAt.localeCompare(a.savedAt));
-    openModal(`<h3>📂 Past Weekly Reports</h3>
-    <p class="sub" style="margin:0 0 10px;">Completed weeks are saved automatically; snapshots are saved manually. Nothing here is ever overwritten.</p>
-    ${rows.length===0?'<div class="emptystate">No saved weekly reports yet. Check back after your first full week, or take a manual snapshot.</div>':`
-    <div style="max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:8px;">
-    ${rows.map(r=>`<div class="flexbetween" style="padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
-      <span>
-        <b>${r.weekStart} → ${r.weekEnd}</b><br>
-        <span class="sub">${r.kind==='snapshot'?'📸 Snapshot':'✅ Completed week'} · saved ${new Date(r.savedAt).toLocaleDateString()} · ${r.stats.hours.toFixed(1)}h logged</span>
-      </span>
-      <button class="btn sm ghost" data-action="viewWeeklyReportEntry" data-id="${r.id}">View</button>
-    </div>`).join('')}
-    </div>`}
-    <div class="row"><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    try{
+      const rows=(DB.weeklyReports||[]).filter(r=>r&&r.stats).slice().sort((a,b)=>(b.savedAt||'').localeCompare(a.savedAt||''));
+      openModal(`<h3>📂 Past Weekly Reports</h3>
+      <p class="sub" style="margin:0 0 10px;">Completed weeks are saved automatically; snapshots are saved manually. Nothing here is ever overwritten.</p>
+      ${rows.length===0?'<div class="emptystate">No saved weekly reports yet. Check back after your first full week, or take a manual snapshot.</div>':`
+      <div style="max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:8px;">
+      ${rows.map(r=>`<div class="flexbetween" style="padding:10px 12px;border:1px solid var(--border);border-radius:12px;">
+        <span>
+          <b>${r.weekStart||'?'} → ${r.weekEnd||'?'}</b><br>
+          <span class="sub">${r.kind==='snapshot'?'📸 Snapshot':'✅ Completed week'} · saved ${r.savedAt?new Date(r.savedAt).toLocaleDateString():'—'} · ${(Number(r.stats.hours)||0).toFixed(1)}h logged</span>
+        </span>
+        <button class="btn sm ghost" data-action="viewWeeklyReportEntry" data-id="${r.id}">View</button>
+      </div>`).join('')}
+      </div>`}
+      <div class="row"><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    }catch(e){
+      console.error('viewWeeklyArchive failed:',e);
+      openModal(`<h3>Something went wrong</h3><p class="sub">The archive couldn't be opened — one of your saved reports may be in an unexpected format. Your data is safe; this is just a display issue.</p><div class="row"><button class="btn ghost" data-action="closeModal">Close</button></div>`);
+    }
     return;
   }
   if(action==='viewWeeklyReportEntry'){
-    const r=(DB.weeklyReports||[]).find(x=>x.id===d.id);
-    if(!r)return;
-    const cmp=r.prevStats?weekComparison(r.stats,r.prevStats):null;
-    openModal(`<h3>${r.kind==='snapshot'?'📸 Snapshot':'✅ Weekly Report'} — ${r.weekStart} → ${r.weekEnd}</h3>
-    <p class="sub" style="margin:0 0 12px;">Saved ${new Date(r.savedAt).toLocaleString()}. This is a frozen record and will not update.</p>
-    <div style="max-height:65vh;overflow:auto;">${renderWeekStatsHTML(r.stats,cmp)}</div>
-    <div class="row"><button class="btn ghost" data-action="viewWeeklyArchive">← Back</button><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    try{
+      const r=(DB.weeklyReports||[]).find(x=>x.id===d.id);
+      if(!r||!r.stats)return;
+      const cmp=r.prevStats?weekComparison(r.stats,r.prevStats):null;
+      openModal(`<h3>${r.kind==='snapshot'?'📸 Snapshot':'✅ Weekly Report'} — ${r.weekStart||'?'} → ${r.weekEnd||'?'}</h3>
+      <p class="sub" style="margin:0 0 12px;">Saved ${r.savedAt?new Date(r.savedAt).toLocaleString():'—'}. This is a frozen record and will not update.</p>
+      <div style="max-height:65vh;overflow:auto;">${renderWeekStatsHTML(r.stats,cmp)}</div>
+      <div class="row"><button class="btn ghost" data-action="viewWeeklyArchive">← Back</button><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    }catch(e){
+      console.error('viewWeeklyReportEntry failed:',e);
+      openModal(`<h3>Something went wrong</h3><p class="sub">This saved report couldn't be displayed — it may be in an unexpected format. Your data is safe; this is just a display issue.</p><div class="row"><button class="btn ghost" data-action="viewWeeklyArchive">← Back</button><button class="btn ghost" data-action="closeModal">Close</button></div>`,true);
+    }
     return;
   }
   if(action==='saveMock'){
