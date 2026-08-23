@@ -826,7 +826,7 @@ function renderSubjectDetail(k){
   </div>
   <div class="card card-solid" style="overflow-x:auto;">
   <table><thead><tr>
-    <th>Topic</th><th>Status</th><th>Lectures</th><th>Target Date</th><th>Completion</th><th>Time (h)</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th>Notes</th><th>Mistakes</th><th></th>
+    <th>Topic</th><th>Status</th><th>Lectures</th><th>Confidence</th><th>Difficulty</th><th>Revisions</th><th></th>
   </tr></thead><tbody>
   ${topics.map(t=>`<tr data-topic="${t.id}">
     <td style="min-width:160px;">${esc(t.name)} <button class="icon-only" data-action="openEditTopicName" data-topic="${t.id}" data-key="${k}" title="Rename topic">✏</button></td>
@@ -834,9 +834,6 @@ function renderSubjectDetail(k){
       ${['Not Started','In Progress','Completed','Revised'].map(o=>`<option ${t.status===o?'selected':''}>${o}</option>`).join('')}
     </select></td>
     <td style="min-width:150px;">${renderLectureCell(t,k)}</td>
-    <td><input type="date" value="${t.targetDate}" min="${minDate}" data-field="targetDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
-    <td><input type="date" value="${t.completionDate}" min="${minDate}" data-field="completionDate" data-topic="${t.id}" data-key="${k}" style="width:130px;"></td>
-    <td><input type="number" step="0.5" min="0" value="${t.timeSpent}" data-field="timeSpent" data-topic="${t.id}" data-key="${k}" style="width:60px;"></td>
     <td><select data-field="confidence" data-topic="${t.id}" data-key="${k}">${[1,2,3,4,5].map(n=>`<option ${t.confidence==n?'selected':''}>${n}</option>`).join('')}</select></td>
     <td><select data-field="difficulty" data-topic="${t.id}" data-key="${k}">${['Easy','Medium','Hard'].map(o=>`<option ${t.difficulty===o?'selected':''}>${o}</option>`).join('')}</select></td>
     <td style="white-space:nowrap;">
@@ -844,8 +841,6 @@ function renderSubjectDetail(k){
       <button class="icon-only" data-action="addRevision" data-topic="${t.id}" data-key="${k}" title="Log a revision">＋</button>
       <button class="icon-only" data-action="openEditRevisions" data-topic="${t.id}" data-key="${k}" title="Set or edit revision count">✏</button>
     </td>
-    <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="notes" title="Edit notes">📝${t.notes?'<span class=\"notes-preview\">'+esc(t.notes.slice(0,14))+'</span>':''}</button></td>
-    <td><button class="icon-only" data-action="openNote" data-topic="${t.id}" data-key="${k}" data-field="mistakes" title="Edit mistakes">⚠${t.mistakes?'<span class=\"notes-preview\">'+esc(t.mistakes.slice(0,14))+'</span>':''}</button></td>
     <td><button class="icon-only" data-action="deleteTopic" data-topic="${t.id}" data-key="${k}" title="Delete topic">🗑</button></td>
   </tr>`).join('')}
   </tbody></table>
