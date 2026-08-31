@@ -78,27 +78,40 @@ function lectureStatusLabel(topic){
    progress bar + status when tracking is on; a small "Track lectures"
    prompt when it isn't. Uses the same .bar/.pill styling already used
    elsewhere in the app rather than introducing new visual components. */
+/* Repopulates the Topic dropdown to match whichever Subject was just picked
+   in the Scheduler's Add/Plan modal (both are optional, independent selects
+   now, instead of one combined "key|topicId" dropdown). */
+function populateCrTopics(){
+  const subjEl=document.getElementById('cr_subject');
+  const topicEl=document.getElementById('cr_topic');
+  if(!subjEl||!topicEl)return;
+  const key=subjEl.value;
+  const topics=(key&&DB.subjects[key])?(DB.subjects[key].topics||[]):[];
+  topicEl.innerHTML='<option value="">— none —</option>'+topics.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+}
 /* Shows the "Lecture #" input on the Scheduler's Add/Plan modal only when it's
    actually meaningful: a Study Session linked to a topic that has lecture
-   tracking turned on (totalLectures>0). Mirrors the existing ss_topic toggle
-   pattern already used for the Start Session modal. */
+   tracking turned on (totalLectures>0) — and shows how many lectures are
+   already done for that topic, pulled live from the Subject's lecture log. */
 function refreshCustomRevisionLectureField(){
   const kindEl=document.getElementById('cr_kind');
+  const subjEl=document.getElementById('cr_subject');
   const topicEl=document.getElementById('cr_topic');
   const wrap=document.getElementById('cr_lecture_wrap');
-  if(!kindEl||!topicEl||!wrap)return;
+  if(!kindEl||!subjEl||!topicEl||!wrap)return;
   let topic=null;
-  if(topicEl.value){
-    const [key,tId]=topicEl.value.split('|');
-    topic=DB.subjects[key]&&DB.subjects[key].topics.find(x=>x.id===tId);
+  if(subjEl.value&&topicEl.value){
+    topic=DB.subjects[subjEl.value]&&DB.subjects[subjEl.value].topics.find(x=>x.id===topicEl.value);
   }
   const trackable=kindEl.value==='session'&&topic&&lectureTotal(topic)>0;
   wrap.style.display=trackable?'flex':'none';
   const lecInput=document.getElementById('cr_lecture');
+  const hint=document.getElementById('cr_lecture_hint');
   if(lecInput){
     if(trackable)lecInput.max=lectureTotal(topic);
     if(!trackable)lecInput.value='';
   }
+  if(hint)hint.textContent=trackable?`${lectureDone(topic)} of ${lectureTotal(topic)} lectures completed so far`:'';
 }
 function renderLectureCell(t,k){
   const tot=lectureTotal(t), done=lectureDone(t);
@@ -170,7 +183,7 @@ async function loadDB(){
       const missing=Object.keys(DB.subjects).filter(k=>!savedOrder.includes(k));
       DB.subjectOrder=[...savedOrder,...missing];
       // backfill optional lectureNumber field on scheduler items saved before this feature existed
-      (DB.customRevisions||[]).forEach(c=>{ if(c.lectureNumber===undefined)c.lectureNumber=null; });
+      (DB.customRevisions||[]).forEach(c=>{ if(c.lectureNumber===undefined)c.lectureNumber=null; if(c.targetHours===undefined)c.targetHours=null; });
     }
   }catch(e){ /* no existing key yet */ }
   if(DB.meta.dark)document.documentElement.classList.add('dark');
@@ -223,7 +236,7 @@ function importDataFromFile(input){
     const savedOrder=Array.isArray(parsed.subjectOrder)?parsed.subjectOrder.filter(k=>DB.subjects[k]):[];
     const missing=Object.keys(DB.subjects).filter(k=>!savedOrder.includes(k));
     DB.subjectOrder=[...savedOrder,...missing];
-    (DB.customRevisions||[]).forEach(c=>{ if(c.lectureNumber===undefined)c.lectureNumber=null; });
+    (DB.customRevisions||[]).forEach(c=>{ if(c.lectureNumber===undefined)c.lectureNumber=null; if(c.targetHours===undefined)c.targetHours=null; });
     if(DB.meta.dark)document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
     document.documentElement.setAttribute('data-accent',DB.meta.accent||'violet');
     clearInterval(pomo.interval);
@@ -281,6 +294,17 @@ function effectiveTargetFor(dateStr){
   return (override!==undefined&&override!==null&&override!=='')?Number(override):Number(DB.meta.targetHoursToday);
 }
 function todayTarget(){return effectiveTargetFor(todayStr());}
+/* Keeps a day's daily-hours target in sync with what's actually been
+   scheduled for it: the override equals the sum of Target Hours entered
+   across every currently-scheduled item due that day. Always recomputed
+   from scratch (not incremented/decremented in place) so it can never
+   drift out of sync. Deliberately NOT called when an item is completed —
+   see completeCustomRevision. */
+function recalcDailyTargetFor(dateStr){
+  const items=(DB.customRevisions||[]).filter(c=>c.due===dateStr&&c.targetHours>0);
+  if(items.length===0){ delete DB.dailyTargets[dateStr]; return; }
+  DB.dailyTargets[dateStr]=items.reduce((a,c)=>a+Number(c.targetHours||0),0);
+}
 function subjectStats(key){
   const topics=DB.subjects[key].topics;
   const total=topics.length;
@@ -560,11 +584,11 @@ function renderTodaySchedule(){
     ...q.filter(r=>r.due===today).map(r=>({icon:'🔁',kindLabel:'Revision',sessCls:'',title:'Revise: '+esc(r.name),meta:esc(r.subject)+' · Rev '+r.revNum,
       check:`data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}"`})),
     ...custom.filter(c=>c.due===today).map(c=>({icon:c.kind==='session'?'📖':'🔁',kindLabel:c.kind==='session'?'Session':'Revision',sessCls:c.kind==='session'?'sess':'',
-      title:esc(c.text)+(c.lectureNumber?` <span class="tag med" style="margin-left:4px;">Lecture ${c.lectureNumber}</span>`:''),meta:c.subject?esc(c.subject):'',check:`data-action="completeCustomRevision" data-id="${c.id}"`}))
+      title:esc(c.text)+(c.lectureNumber?` <span class="tag med" style="margin-left:4px;">Lecture ${c.lectureNumber}</span>`:'')+(c.targetHours?` <span class="tag low" style="margin-left:4px;">${c.targetHours}h target</span>`:''),meta:c.subject?esc(c.subject):'',check:`data-action="completeCustomRevision" data-id="${c.id}"`}))
   ];
   const tmrItems=[
     ...q.filter(r=>r.due===tmr).map(r=>({icon:'🔁',title:'Revise: '+esc(r.name),meta:esc(r.subject)+' · Rev '+r.revNum})),
-    ...custom.filter(c=>c.due===tmr).map(c=>({icon:c.kind==='session'?'📖':'🔁',title:esc(c.text)+(c.lectureNumber?` <span class="tag med" style="margin-left:4px;">Lecture ${c.lectureNumber}</span>`:''),meta:c.subject?esc(c.subject):''}))
+    ...custom.filter(c=>c.due===tmr).map(c=>({icon:c.kind==='session'?'📖':'🔁',title:esc(c.text)+(c.lectureNumber?` <span class="tag med" style="margin-left:4px;">Lecture ${c.lectureNumber}</span>`:'')+(c.targetHours?` <span class="tag low" style="margin-left:4px;">${c.targetHours}h target</span>`:''),meta:c.subject?esc(c.subject):''}))
   ];
   return `<div class="card">
     ${todayItems.length===0?'<div class="emptystate schedule-empty">Nothing scheduled for today.</div>':
@@ -669,59 +693,50 @@ function ringSVG(pct,size){
   </svg>`;
 }
 /* ================= REVISIONS (Dashboard) =================
-   Merges what used to be Study > Revision (the auto spaced-repetition queue)
-   with the "Manually Added / Scheduled" custom list. A custom entry can
-   optionally be linked to a real tracked topic — completing a linked entry
-   calls logTopicRevision() on that topic, the same function the spaced-
-   repetition queue uses, so it counts toward that subject's revision stats
-   exactly like an auto-recommended revision would. */
+/* Unified list: merges the auto spaced-repetition revision queue with
+   manually-scheduled items (revisions or study sessions) into one place,
+   grouped by due date, instead of two separate "Recommended" vs "Manually
+   Added" panels. A custom entry can optionally be linked to a real tracked
+   topic — completing a linked entry calls logTopicRevision() on that topic,
+   the same function the spaced-repetition queue uses, so it counts toward
+   that subject's revision stats exactly like an auto-recommended one would. */
 function renderDashboardRevisions(){
   const q=revisionQueue();
   const today=todayStr();
   const tmr=addDaysStr(today,1);
   const in7=addDaysStr(today,7);
-  const groups={Today:q.filter(r=>r.due<=today),Tomorrow:q.filter(r=>r.due===tmr),'Next 7 Days':q.filter(r=>r.due>tmr&&r.due<=in7)};
-  const custom=(DB.customRevisions||[]).slice().sort((a,b)=>a.due.localeCompare(b.due));
-  return `
-  <div class="grid g2" style="align-items:start;">
-    <div class="card">
-      <div class="label" style="margin-bottom:10px;">🔁 Recommended</div>
-      <div style="max-height:340px;overflow-y:auto;">
-      ${Object.keys(groups).every(g=>groups[g].length===0)?'<div class="emptystate">Nothing recommended yet.</div>':
-      Object.keys(groups).map(g=>{
-        const items=groups[g];
-        if(items.length===0)return '';
-        return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-        ${items.map(r=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-          <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-            <input type="checkbox" data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}" style="width:15px;height:15px;flex-shrink:0;">
-            <span>${esc(r.name)} <span class="sub" style="color:var(--text-faint);">· ${esc(r.subject)} · Rev ${r.revNum} · due ${r.due}</span></span>
-          </label>
-        </div>`).join('')}`;
-      }).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="label" style="margin-bottom:10px;">📌 Manually Added & Scheduled</div>
-      <div style="max-height:340px;overflow-y:auto;">
-      ${custom.length===0?'<div class="emptystate">Nothing planned yet.</div>':
-      (()=>{
-        const wgroups={Today:custom.filter(c=>c.due<=today),Tomorrow:custom.filter(c=>c.due===tmr),'This Week':custom.filter(c=>c.due>tmr&&c.due<=in7),Later:custom.filter(c=>c.due>in7)};
-        return Object.keys(wgroups).map(g=>{
-          const items=wgroups[g];
-          if(items.length===0)return '';
-          return `<div class="sub" style="margin:10px 0 4px;font-weight:700;color:var(--text);">${g} (${items.length})</div>
-          ${items.map(c=>`<div class="flexbetween" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-            <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-              <input type="checkbox" data-action="completeCustomRevision" data-id="${c.id}" style="width:15px;height:15px;flex-shrink:0;">
-              <span>${c.kind==='session'?'📖':'🔁'} ${esc(c.text)}${c.lectureNumber?` <span class="tag med">Lecture ${c.lectureNumber}</span>`:''} <span class="sub" style="color:var(--text-faint);">${c.subject?'· '+esc(c.subject):''} · due ${c.due}</span></span>
-            </label>
-            <button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>
-          </div>`).join('')}`;
-        }).join('');
-      })()}
-      </div>
-    </div>
+  const custom=(DB.customRevisions||[]).slice();
+  const allItems=[
+    ...q.map(r=>({due:r.due,icon:'🔁',kindLabel:'Revision',
+      title:'Revise: '+esc(r.name),meta:esc(r.subject)+' · Rev '+r.revNum,
+      check:`data-action="addRevision" data-topic="${r.topicId}" data-key="${r.subjectKey}"`,del:''})),
+    ...custom.map(c=>({due:c.due,icon:c.kind==='session'?'📖':'🔁',kindLabel:c.kind==='session'?'Session':'Revision',
+      title:esc(c.text)+(c.lectureNumber?` <span class="tag med">Lecture ${c.lectureNumber}</span>`:'')+(c.targetHours?` <span class="tag low">${c.targetHours}h target</span>`:''),
+      meta:c.subject?esc(c.subject):'',check:`data-action="completeCustomRevision" data-id="${c.id}"`,
+      del:`<button class="icon-only" data-action="deleteCustomRevision" data-id="${c.id}" title="Remove">🗑</button>`}))
+  ];
+  const groups={
+    Overdue:allItems.filter(x=>x.due<today).sort((a,b)=>a.due.localeCompare(b.due)),
+    Today:allItems.filter(x=>x.due===today),
+    Tomorrow:allItems.filter(x=>x.due===tmr),
+    'This Week':allItems.filter(x=>x.due>tmr&&x.due<=in7).sort((a,b)=>a.due.localeCompare(b.due)),
+    Later:allItems.filter(x=>x.due>in7).sort((a,b)=>a.due.localeCompare(b.due)),
+  };
+  return `<div class="card">
+    ${Object.values(groups).every(g=>g.length===0)?'<div class="emptystate">Nothing planned yet — tap + Add / Schedule Item to get started.</div>':
+    Object.keys(groups).map(g=>{
+      const items=groups[g];
+      if(items.length===0)return '';
+      return `<div class="sub" style="margin:14px 4px 6px;font-weight:700;color:${g==='Overdue'?'var(--red)':'var(--text)'};">${g} (${items.length})</div>
+      <div class="schedule-list">${items.map(it=>`
+        <div class="schedule-item">
+          <input type="checkbox" ${it.check} style="width:17px;height:17px;flex-shrink:0;cursor:pointer;">
+          <span class="schedule-check-icon">${it.icon}</span>
+          <div class="schedule-body"><div class="schedule-title">${it.title}</div>${it.meta?`<div class="schedule-tag">${it.meta}</div>`:''}</div>
+          <span class="schedule-kind ${it.kindLabel==='Session'?'sess':''}">${it.kindLabel}</span>
+          ${it.del}
+        </div>`).join('')}</div>`;
+    }).join('')}
   </div>`;
 }
 
@@ -1779,6 +1794,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.action==='setMockTarget'){ DB.meta.mockTargetScore=Number(t.value)||1; scheduleSave(); render(); }
   if(t.dataset.action==='toggleTask'){ const d=todayStr(); const task=(DB.tasks[d]||[]).find(x=>x.id===t.dataset.id); if(task){task.done=t.checked; scheduleSave(); render();} }
   if(t.id==='ss_topic'){ const w=document.getElementById('ss_newtopic_wrap'); if(w)w.style.display=(t.value==='__new__')?'flex':'none'; }
+  if(t.id==='cr_subject'){ populateCrTopics(); refreshCustomRevisionLectureField(); }
   if(t.id==='cr_kind'||t.id==='cr_topic'){ refreshCustomRevisionLectureField(); }
   if(t.dataset.action==='setPomoSubtopic'){ pomo.subtopic=t.value; savePomoState(); }
   if(t.dataset.action==='setPomoWork'){ DB.meta.pomoWork=Number(t.value)||25; if(!pomo.running&&pomo.mode==='Work'){pomo.seconds=DB.meta.pomoWork*60;} scheduleSave(); savePomoState(); render(); }
@@ -1931,14 +1947,14 @@ function handleAction(action,btn){
           <option value="session">📖 Study Session</option>
         </select>
       </label>
-      <label>Link to a tracked topic (optional)
-        <select id="cr_topic">
-          <option value="">— freeform, not linked —</option>
-          ${subjectKeys().map(k=>`<optgroup label="${esc(subjLabel(k))}">${(DB.subjects[k].topics||[]).map(t=>`<option value="${k}|${t.id}">${esc(t.name)}</option>`).join('')}</optgroup>`).join('')}
-        </select>
-      </label>
-      <label>Topic / Item (used if not linked above) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
-      <label id="cr_lecture_wrap" style="display:none;">Lecture # (optional) <input type="number" min="1" id="cr_lecture" placeholder="e.g. 5"></label>
+      <label>Subject (optional) <select id="cr_subject">
+        <option value="">— none —</option>
+        ${subjectKeys().map(k=>`<option value="${k}">${esc(subjLabel(k))}</option>`).join('')}
+      </select></label>
+      <label>Topic (optional) <select id="cr_topic"><option value="">— none —</option></select></label>
+      <label>Subtopic / Note (optional) <input type="text" id="cr_text" placeholder="e.g. Percentage formulas, Chapter 5, or a quick note"></label>
+      <label>Target Hours (optional) <input type="number" min="0" step="0.5" id="cr_targetHours" placeholder="e.g. 2"></label>
+      <label id="cr_lecture_wrap" style="display:none;">Lecture # (optional) <input type="number" min="1" id="cr_lecture" placeholder="e.g. 5"> <span class="sub" id="cr_lecture_hint" style="display:block;margin-top:3px;"></span></label>
       <label>Due Date <input type="date" id="cr_due" value="${todayStr()}" min="${MIN_DATE}"></label>
     </div>
     <div class="row"><button class="btn ghost" data-action="closeModal">Cancel</button><button class="btn" data-action="saveCustomRevision">Save</button></div>`);
@@ -1946,28 +1962,35 @@ function handleAction(action,btn){
   }
   if(action==='saveCustomRevision'){
     const kind=document.getElementById('cr_kind').value==='session'?'session':'revision';
-    const topicSel=document.getElementById('cr_topic').value;
+    const subjKey=document.getElementById('cr_subject').value;
+    const topicId=document.getElementById('cr_topic').value;
     const freeText=document.getElementById('cr_text').value.trim();
     const due=document.getElementById('cr_due').value||todayStr();
-    let subjectKey='',topicId='',subjectLabelText='',text=freeText,lectureNumber=null;
-    if(topicSel){
-      const [key,tId]=topicSel.split('|');
-      const topic=DB.subjects[key]&&DB.subjects[key].topics.find(t=>t.id===tId);
-      if(topic){
-        subjectKey=key; topicId=tId; subjectLabelText=subjLabel(key); text=text||topic.name;
-        // Scheduling a lecture only records the plan — it never touches the topic's
-        // lecture progress. That happens only when this scheduled item is completed
-        // (see completeCustomRevision) or via the manual "Complete Next Lecture" button.
-        if(kind==='session'&&lectureTotal(topic)>0){
-          const lecEl=document.getElementById('cr_lecture');
-          const lecVal=lecEl?Number(lecEl.value):NaN;
-          if(!isNaN(lecVal)&&lecVal>0)lectureNumber=Math.min(lectureTotal(topic),Math.round(lecVal));
-        }
+    const targetHoursRaw=Number(document.getElementById('cr_targetHours').value);
+    const targetHours=(!isNaN(targetHoursRaw)&&targetHoursRaw>0)?targetHoursRaw:null;
+    let subjectKeyOut='',topicIdOut='',subjectLabelText='',lectureNumber=null,topic=null;
+    if(subjKey&&DB.subjects[subjKey]){
+      subjectKeyOut=subjKey; subjectLabelText=subjLabel(subjKey);
+      if(topicId){
+        topic=DB.subjects[subjKey].topics.find(t=>t.id===topicId);
+        if(topic)topicIdOut=topicId;
       }
     }
-    if(!text){alert('Please link a topic or type something to plan.'); return;}
+    let text=freeText;
+    if(!text&&topic)text=topic.name;
+    if(!text&&subjectLabelText)text=subjectLabelText;
+    if(!text){alert('Please choose a subject/topic or type something to plan.'); return;}
+    // Scheduling a lecture only records the plan — it never touches the topic's
+    // lecture progress. That happens only when this scheduled item is completed
+    // (see completeCustomRevision) or via the manual "Complete Next Lecture" button.
+    if(kind==='session'&&topic&&lectureTotal(topic)>0){
+      const lecEl=document.getElementById('cr_lecture');
+      const lecVal=lecEl?Number(lecEl.value):NaN;
+      if(!isNaN(lecVal)&&lecVal>0)lectureNumber=Math.min(lectureTotal(topic),Math.round(lecVal));
+    }
     DB.customRevisions=DB.customRevisions||[];
-    DB.customRevisions.push({id:uid(),kind,text,subject:subjectLabelText,subjectKey,topicId,due,lectureNumber});
+    DB.customRevisions.push({id:uid(),kind,text,subject:subjectLabelText,subjectKey:subjectKeyOut,topicId:topicIdOut,due,lectureNumber,targetHours});
+    recalcDailyTargetFor(due);
     scheduleSave(); closeModal(); render(); return;
   }
   if(action==='completeCustomRevision'){
@@ -1986,12 +2009,17 @@ function handleAction(action,btn){
       }
     }
     celebrate(c?(isSession?'Session done: '+c.text:'Revised: '+c.text):'Done','🎉');
+    // Deliberately does NOT recalc that day's target hours on completion — the
+    // target should still reflect what you set out to do that day, even after
+    // the completed plan itself is cleared from the list below.
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
     scheduleSave(); render(); return;
   }
   if(action==='deleteCustomRevision'){
     if(!confirm('Remove this revision reminder?'))return;
+    const c=(DB.customRevisions||[]).find(x=>x.id===d.id);
     DB.customRevisions=(DB.customRevisions||[]).filter(c=>c.id!==d.id);
+    if(c)recalcDailyTargetFor(c.due);
     scheduleSave(); render(); return;
   }
   if(action==='openNote'){
