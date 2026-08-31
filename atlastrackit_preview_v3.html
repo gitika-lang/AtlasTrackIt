@@ -484,11 +484,14 @@ html.dark .modal:before{content:'';position:absolute;top:0;left:14px;right:14px;
 .y-stat-label{font-family:var(--font-mono);font-size:9px;color:var(--text-faint);margin-top:3px;text-transform:uppercase;letter-spacing:.05em;}
 
 /* ---- This Week bar strip ---- */
-.week-bars{display:flex;align-items:flex-end;gap:7px;height:52px;margin:6px 0 10px;}
-.week-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end;}
-.week-bar{width:100%;border-radius:5px 5px 3px 3px;background:linear-gradient(180deg,var(--accent-500),var(--accent-700));opacity:.85;height:4%;transition:height 1s cubic-bezier(.22,1,.36,1);}
+.week-bars{display:flex;align-items:flex-end;gap:12px;height:130px;margin:6px 0 14px;}
+.week-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;}
+.week-bar-val{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--text-muted);min-height:14px;}
+.week-bar{width:100%;max-width:38px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,var(--accent-500),var(--accent-700));opacity:.85;height:3%;transition:height 1s cubic-bezier(.22,1,.36,1);}
 .week-bar.today{background:linear-gradient(180deg,var(--atm-cyan,var(--accent-500)),var(--accent-600));box-shadow:0 0 10px rgba(45,227,255,.35);}
-.week-bar-day{font-family:var(--font-mono);font-size:9px;color:var(--text-faint);}
+.week-bar-day{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);display:flex;flex-direction:column;align-items:center;gap:1px;}
+.week-bar-day span{font-size:9px;opacity:.75;}
+.week-bar-day.today{color:var(--atm-cyan,var(--accent-500));font-weight:700;}
 
 @media(max-width:700px){
   html.dark body:before{width:220vw;height:220vh;filter:blur(70px);}
@@ -611,18 +614,6 @@ const SYLLABUS={
   currentAffairs:{label:'Current Affairs',icon:'📰',topics:["National Affairs","International Affairs","Sports Current Affairs","Government Schemes","Appointments & Resignations","Awards & Honours (Current)","Banking & Economy Awareness","Important Days & Themes"]}
 };
 const HABITS=["Wake up on time","Study 6+ Hours","Revision","Current Affairs","Vocabulary","Math Practice","Reasoning Practice","Reading","Exercise","Meditation","Sleep before 11 PM","Water Intake (8 glasses)","No Social Media","No Procrastination"];
-const QUOTES=[
-"Small daily wins compound into results no one can ignore.",
-"You don't need a perfect day. You need a done day.",
-"The syllabus doesn't finish itself. Show up, chapter by chapter.",
-"Mocks don't measure you. They measure the gap you're about to close.",
-"Every revision is a receipt that today's effort will still be there in March.",
-"Discipline is choosing between what you want now and what you want most.",
-"A weak topic today is a scoring topic in ninety days, if you keep coming back.",
-"Consistency beats intensity when the exam is a year away.",
-"The streak isn't the goal. It's proof the goal is being worked on.",
-"Every question you get wrong today is one you won't miss in the exam hall."
-];
 const DEFAULT_SUBJECT_COLORS=['#a855f7','#ec4899','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#06b6d4','#f43f5e','#14b8a6','#eab308'];
 const DEFAULT_TOPIC_ICON='📘';
 const POMO_PRESETS=[[25,5],[30,5],[45,10],[50,10],[90,15]];
@@ -950,12 +941,13 @@ const TABS=[
 ];
 const SUBTABS={
   study:[{key:'subjects',label:'Subjects',ic:'📚'},{key:'log',label:'Study Log',ic:'📝'},{key:'analytics',label:'Analytics',ic:'📊'}],
-  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'weekly',label:'Weekly Report',ic:'🗓'},{key:'achievements',label:'Achievements',ic:'🏅'}],
+  goals:[{key:'goals',label:'Goals',ic:'🎯'},{key:'weekly',label:'Weekly Report',ic:'🗓'}],
   mocks:[{key:'mocks',label:'Mock Tests',ic:'🧪'},{key:'pyq',label:'PYQ Tracker',ic:'📄'}]
 };
 let currentTab='dashboard';
 let currentSubtab={study:'subjects',goals:'goals',mocks:'mocks'};
 let openSubject=null;
+let logVisibleCount=7; // Study Log: show this many recent entries before "View More"
 let formTemp={}; // scratch state for un-submitted add-forms
 const charts={};
 
@@ -977,7 +969,6 @@ function render(){
   document.getElementById('sideStreak').textContent=currentStreak()+' day streak';
   const streakEl=document.querySelector('.streakpill');
   if(streakEl)streakEl.classList.toggle('streak-hot',currentStreak()>=7);
-  checkBadgeUnlocks();
   const view=document.getElementById('view');
   const renderKey=currentTab+'|'+(currentSubtab[currentTab]||'')+'|'+(openSubject||'');
   const isFreshView=renderKey!==lastRenderKey;
@@ -1006,7 +997,6 @@ function renderGoalsPage(){
   let content='';
   if(sub==='goals')content=renderGoals();
   else if(sub==='weekly')content=renderWeeklyReport();
-  else if(sub==='achievements')content=`<div class="section-title"><h2>Achievements</h2><span class="hint">Unlocked as you hit milestones</span></div>${renderBadges()}`;
   return subnavHtml('goals')+content;
 }
 function renderMocksPage(){
@@ -1022,7 +1012,6 @@ function renderDashboard(){
   const today=todayStr();
   const target=todayTarget();
   const th=todayStudyTime();
-  const quote=QUOTES[new Date().getDate()%QUOTES.length];
   const pomoTopicObj=(DB.subjects[pomo.subjectKey]?.topics||[]).find(t=>t.id===pomo.topicId);
   const pomoSubjLabel=pomo.subjectKey?subjLabel(pomo.subjectKey):'No subject selected';
   const pomoTopicLabel=pomoTopicObj?pomoTopicObj.name:(pomo.subtopic||'');
@@ -1113,18 +1102,11 @@ function renderDashboard(){
   <div class="section-title"><h2>Needs Attention</h2></div>
   ${renderNeedsAttention()}
 
-  <div class="grid g2" style="margin-top:14px;align-items:start;">
-    <div>
-      <div class="section-title" style="margin-top:0;"><h2>This Week</h2></div>
-      ${renderThisWeek()}
-    </div>
-    <div>
-      <div class="section-title" style="margin-top:0;"><h2>Yesterday</h2></div>
-      ${renderYesterdayCompact()}
-    </div>
-  </div>
+  <div class="section-title" style="margin-top:14px;"><h2>This Week</h2></div>
+  ${renderThisWeek()}
 
-  <div class="quote-box" style="margin-top:14px;"><p>"${esc(quote)}"</p><span>Daily motivation · Day ${daysElapsed()} of 365</span></div>
+  <div class="section-title"><h2>Yesterday</h2></div>
+  ${renderYesterdayCompact()}
   `;
 }
 /* ---- Today's Schedule: merges the auto revision queue + manually scheduled
@@ -1199,13 +1181,17 @@ function renderThisWeek(){
   const ws=weekStartOf(today);
   const stats=computeWeekStats(ws);
   const dates=weekDates(ws);
-  const dayLabels=['S','M','T','W','T','F','S'];
+  const dayLabels=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const maxH=Math.max(...dates.map(d=>hoursOn(d)),1);
   return `<div class="card">
     <div class="week-bars">
       ${dates.map((d,i)=>{
-        const h=hoursOn(d), isToday=d===today;
-        return `<div class="week-bar-col"><div class="week-bar${isToday?' today':''}" style="height:${Math.max(4,h/maxH*100)}%;" title="${d}: ${h.toFixed(1)}h"></div><div class="week-bar-day">${dayLabels[i]}</div></div>`;
+        const h=hoursOn(d), isToday=d===today, dayNum=Number(d.slice(8,10));
+        return `<div class="week-bar-col">
+          <div class="week-bar-val">${h>0?h.toFixed(1)+'h':''}</div>
+          <div class="week-bar${isToday?' today':''}" style="height:${Math.max(3,h/maxH*100)}%;" title="${d}: ${h.toFixed(1)}h"></div>
+          <div class="week-bar-day${isToday?' today':''}">${dayLabels[i]}<span>${dayNum}</span></div>
+        </div>`;
       }).join('')}
     </div>
     <div class="flexbetween">
@@ -1244,26 +1230,6 @@ function ringSVG(pct,size){
     <circle class="ring-progress" cx="${s/2}" cy="${s/2}" r="${r}" style="stroke:url(#${gid});filter:drop-shadow(0 0 8px rgba(45,227,255,.35));" stroke-width="${s*0.0833}" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}"/>
   </svg>`;
 }
-function badgeList(){
-  const qSolved=DB.sessions.reduce((a,b)=>a+Number(b.qSolved||0),0);
-  const topicsDone=allTopics().filter(t=>t.status==='Completed'||t.status==='Revised').length;
-  return [
-    {ic:'🔥',label:'7 Day Streak',unlocked:currentStreak()>=7||longestStreak()>=7},
-    {ic:'🔥',label:'30 Day Streak',unlocked:longestStreak()>=30},
-    {ic:'⏱',label:'100 Hours',unlocked:totalHours()>=100},
-    {ic:'⏱',label:'300 Hours',unlocked:totalHours()>=300},
-    {ic:'✏️',label:'500 Questions',unlocked:qSolved>=500},
-    {ic:'✏️',label:'1000 Questions',unlocked:qSolved>=1000},
-    {ic:'📘',label:'50 Topics Done',unlocked:topicsDone>=50},
-    {ic:'🧪',label:'First Mock Test',unlocked:DB.mocks.length>=1},
-    {ic:'🧪',label:'10 Mock Tests',unlocked:DB.mocks.length>=10},
-  ];
-}
-function renderBadges(){
-  const badges=badgeList();
-  return `<div class="badge-grid">${badges.map(b=>`<div class="badge ${b.unlocked?'unlocked':''}"><span class="bic">${b.ic}</span>${b.label}</div>`).join('')}</div>`;
-}
-
 /* ================= REVISIONS (Dashboard) =================
    Merges what used to be Study > Revision (the auto spaced-repetition queue)
    with the "Manually Added / Scheduled" custom list. A custom entry can
@@ -1429,7 +1395,9 @@ function updateMockLiveDisplay(){
 function renderLog(){
   ensureLogForm();
   const f=formTemp.log;
-  const sorted=[...DB.sessions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
+  const allSorted=[...DB.sessions].sort((a,b)=>b.date.localeCompare(a.date));
+  const sorted=allSorted.slice(0,logVisibleCount);
+  const remaining=allSorted.length-sorted.length;
   return `
   <div class="card">
     <div class="label" style="margin-bottom:10px;">Quick Session Entry <span class="hint">— under a minute</span></div>
@@ -1469,7 +1437,8 @@ function renderLog(){
       <button class="icon-only" data-action="deleteSession" data-id="${s.id}" title="Delete entry">🗑</button>
     </div>`;
   }).join('')}
-  </div>`}
+  </div>
+  ${remaining>0?`<button class="btn ghost sm" data-action="showMoreLogs" style="width:100%;margin-top:10px;">View More (${remaining} more)</button>`:(allSorted.length>7?`<button class="btn ghost sm" data-action="collapseLogs" style="width:100%;margin-top:10px;">Show Less</button>`:'')}`}
   </div>`;
 }
 
@@ -2191,18 +2160,6 @@ function spawnConfetti(){
     setTimeout(()=>p.remove(),1300);
   }
 }
-/* Compares currently-unlocked badges against what's already been celebrated
-   (persisted in DB.meta.seenBadges) and fires a toast for any newly earned
-   one. Cheap to run every render — just a small array diff. */
-function checkBadgeUnlocks(){
-  const list=badgeList();
-  DB.meta.seenBadges=DB.meta.seenBadges||[];
-  const newlyUnlocked=list.filter(b=>b.unlocked&&!DB.meta.seenBadges.includes(b.label));
-  if(newlyUnlocked.length===0)return;
-  DB.meta.seenBadges=[...DB.meta.seenBadges,...newlyUnlocked.map(b=>b.label)];
-  scheduleSave();
-  newlyUnlocked.forEach((b,i)=>setTimeout(()=>celebrate('Badge unlocked: '+b.label,b.ic),i*900));
-}
 function logCompletedWorkBlock(){
   if(studyTimer.seconds<=0)return false;
   const topic=pomoSelectedTopic();
@@ -2746,6 +2703,8 @@ function handleAction(action,btn){
     delete formTemp.log; scheduleSave(); render(); return;
   }
   if(action==='deleteSession'){DB.sessions=DB.sessions.filter(s=>s.id!==d.id); scheduleSave(); render(); return;}
+  if(action==='showMoreLogs'){logVisibleCount+=20; render(); return;}
+  if(action==='collapseLogs'){logVisibleCount=7; render(); return;}
   if(action==='saveGoal'){
     const g=id=>document.getElementById(id);
     if(!g('g_text').value.trim())return;
