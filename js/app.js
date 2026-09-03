@@ -140,7 +140,7 @@ function defaultState(){
       pomoWork:25,pomoBreak:5,pomoAutoTransition:true,pomoSound:true,pomoNotify:false},
     sessions:[], subjects, subjectOrder:Object.keys(SYLLABUS), goals:[], habits:{}, mocks:[], pyq:[], errors:[],
     notes:{quick:'',formulas:[],vocab:[]}, tasks:{}, dailyTargets:{}, customRevisions:[], history:[],
-    weeklyReports:[]
+    weeklyReports:[], workTasks:[]
   };
 }
 let DB=defaultState();
@@ -161,6 +161,7 @@ async function loadDB(){
       DB.history=Array.isArray(parsed.history)?parsed.history:[];
       DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
       DB.weeklyReports=Array.isArray(parsed.weeklyReports)?parsed.weeklyReports:[];
+      DB.workTasks=Array.isArray(parsed.workTasks)?parsed.workTasks:[];
       // backfill any new syllabus topics not present (safe merge)
       Object.keys(SYLLABUS).forEach(k=>{
         if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true};
@@ -221,6 +222,7 @@ function importDataFromFile(input){
     DB.history=Array.isArray(parsed.history)?parsed.history:[];
     DB.notes=Object.assign({quick:'',formulas:[],vocab:[]},parsed.notes||{});
     DB.weeklyReports=Array.isArray(parsed.weeklyReports)?parsed.weeklyReports:[];
+    DB.workTasks=Array.isArray(parsed.workTasks)?parsed.workTasks:[];
     Object.keys(SYLLABUS).forEach(k=>{ if(!DB.subjects[k])DB.subjects[k]={priority:'Medium',topics:SYLLABUS[k].topics.map(freshTopic),name:SYLLABUS[k].label,icon:SYLLABUS[k].icon,color:'',builtin:true}; });
     Object.keys(DB.subjects).forEach(k=>{
       const s=DB.subjects[k];
@@ -569,7 +571,48 @@ function renderDashboard(){
 
   <div class="section-title"><h2>Yesterday</h2></div>
   ${renderYesterdayCompact()}
+
+  <div class="section-title"><h2>Work / Internship</h2></div>
+  ${renderWorkTasks()}
   `;
+}
+/* ================= WORK / INTERNSHIP (Dashboard-only) =================
+   Deliberately isolated from the study Scheduler/customRevisions/goals — its
+   own DB.workTasks array, its own render function and action handlers, no
+   shared state with anything else. Just a quick place to jot internship
+   tasks and check them off from the Dashboard. */
+function ensureWorkTaskForm(){if(!formTemp.workTask)formTemp.workTask={title:'',due:'',time:''};}
+function renderWorkTasks(){
+  ensureWorkTaskForm(); const f=formTemp.workTask;
+  const tasks=(DB.workTasks||[]).slice();
+  const pending=tasks.filter(t=>!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
+  const completed=tasks.filter(t=>t.done);
+  return `<div class="card">
+    <div class="formgrid" style="grid-template-columns:2fr 1fr 1fr auto;align-items:end;">
+      <label>Task <input type="text" id="wt_title" value="${esc(f.title)}" placeholder="e.g. Submit weekly report"></label>
+      <label>Date (optional) <input type="date" id="wt_due" value="${f.due}"></label>
+      <label>Time (optional) <input type="time" id="wt_time" value="${f.time}"></label>
+      <button class="btn sm" data-action="saveWorkTask" style="height:38px;">+ Add</button>
+    </div>
+    ${pending.length===0&&completed.length===0?'<div class="emptystate" style="margin-top:12px;">No internship tasks yet — add one above.</div>':''}
+    ${pending.length>0?`
+    <div class="schedule-list" style="margin-top:12px;">${pending.map(t=>`
+      <div class="schedule-item">
+        <input type="checkbox" data-action="toggleWorkTask" data-id="${t.id}" style="width:17px;height:17px;flex-shrink:0;cursor:pointer;">
+        <span class="schedule-check-icon">💼</span>
+        <div class="schedule-body"><div class="schedule-title">${esc(t.title)}</div>${t.due?`<div class="schedule-tag">${t.due}${t.time?' · '+t.time:''}</div>`:''}</div>
+        <button class="icon-only" data-action="deleteWorkTask" data-id="${t.id}" title="Remove">🗑</button>
+      </div>`).join('')}</div>`:''}
+    ${completed.length>0?`
+    <div class="sub" style="margin:14px 4px 4px;font-weight:700;color:var(--text);">Completed (${completed.length})</div>
+    <div class="schedule-list">${completed.map(t=>`
+      <div class="schedule-item" style="opacity:.6;">
+        <input type="checkbox" checked data-action="toggleWorkTask" data-id="${t.id}" style="width:17px;height:17px;flex-shrink:0;cursor:pointer;">
+        <span class="schedule-check-icon">✅</span>
+        <div class="schedule-body"><div class="schedule-title" style="text-decoration:line-through;">${esc(t.title)}</div>${t.due?`<div class="schedule-tag">${t.due}${t.time?' · '+t.time:''}</div>`:''}</div>
+        <button class="icon-only" data-action="deleteWorkTask" data-id="${t.id}" title="Remove">🗑</button>
+      </div>`).join('')}</div>`:''}
+  </div>`;
 }
 /* ---- Today's Schedule: merges the auto revision queue + manually scheduled
    items due today (and a lighter preview of tomorrow), reusing the exact
@@ -2169,6 +2212,24 @@ function handleAction(action,btn){
     delete formTemp.log; scheduleSave(); render(); return;
   }
   if(action==='deleteSession'){DB.sessions=DB.sessions.filter(s=>s.id!==d.id); scheduleSave(); render(); return;}
+  /* ---- Work / Internship (Dashboard) — isolated from everything else ---- */
+  if(action==='saveWorkTask'){
+    const g=id=>document.getElementById(id);
+    const title=g('wt_title').value.trim();
+    if(!title)return;
+    DB.workTasks=DB.workTasks||[];
+    DB.workTasks.push({id:uid(),title,due:g('wt_due').value||'',time:g('wt_time').value||'',done:false});
+    delete formTemp.workTask; scheduleSave(); render(); return;
+  }
+  if(action==='toggleWorkTask'){
+    const t=(DB.workTasks||[]).find(x=>x.id===d.id);
+    if(t)t.done=!t.done;
+    scheduleSave(); render(); return;
+  }
+  if(action==='deleteWorkTask'){
+    DB.workTasks=(DB.workTasks||[]).filter(x=>x.id!==d.id);
+    scheduleSave(); render(); return;
+  }
   if(action==='showMoreLogs'){logVisibleCount+=20; render(); return;}
   if(action==='collapseLogs'){logVisibleCount=7; render(); return;}
   if(action==='saveGoal'){
