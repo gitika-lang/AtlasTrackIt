@@ -2098,10 +2098,18 @@ function loadPomoState(){
     pomo.sessionType=s.sessionType==='Revision'?'Revision':'Study';
     pomoSavedDate=s.studyDate||todayStr();
     if(pomo.running&&s.ts){
-      // catch up for time elapsed while the page was closed/refreshed
+      // Catch up for time elapsed while the app was away (tab closed/refreshed,
+      // laptop asleep, or fully shut down). A session can only ever run as
+      // long as its own remaining duration — capping the credited time at
+      // pomo.seconds (what was left in the phase when it was last saved)
+      // means a brief refresh still resumes seamlessly, but a laptop left
+      // asleep/off for hours no longer gets that entire gap counted as real
+      // study time (previously unbounded — this is what caused 9h/20h+
+      // sessions after the laptop slept with the timer left running).
       const elapsed=Math.max(0,Math.floor((Date.now()-s.ts)/1000));
-      if(pomo.mode==='Work')studyTimer.seconds+=elapsed;
-      pomo.seconds-=elapsed;
+      const creditable=Math.min(elapsed,pomo.seconds);
+      if(pomo.mode==='Work')studyTimer.seconds+=creditable;
+      pomo.seconds-=creditable;
       if(pomo.seconds<=0){
         // missed the session-end transition while away; settle into a fresh
         // session in the current mode rather than guessing how many cycles passed
